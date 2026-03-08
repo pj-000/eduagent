@@ -1,0 +1,146 @@
+{
+  "class_name": "SequentialWorkFlowGraph",
+  "goal": "实现三角函数概念理解、技能训练与学习成效闭环评估的教学工作流",
+  "tasks": [
+    {
+      "name": "diagnose_prior_knowledge",
+      "description": "评估学生关于角、单位圆、直角三角形等前置知识的掌握水平",
+      "inputs": [
+        {
+          "name": "student_profile",
+          "type": "string",
+          "description": "学生年级、已学内容、常见错误记录",
+          "required": true
+        }
+      ],
+      "outputs": [
+        {
+          "name": "knowledge_gaps",
+          "type": "string",
+          "description": "识别出的具体前置知识缺失项列表",
+          "required": true
+        }
+      ],
+      "prompt": "你是教育诊断专家，专注数学前概念评估。请基于以下学生背景信息，系统识别其在角的概念、弧度制、单位圆及直角三角形边角关系等方面的典型知识缺口。\n\n学生背景：\n{student_profile}\n\n请仅输出结构化知识缺口列表，每项用分号分隔，不加解释。",
+      "prompt_template": null,
+      "system_prompt": "You are a helpful and highly intelligent assistant.",
+      "parse_mode": "str",
+      "parse_func": null,
+      "parse_title": null,
+      "tool_names": null
+    },
+    {
+      "name": "design_conceptual_sequence",
+      "description": "依据知识缺口设计由具象到抽象的三角函数教学序列",
+      "inputs": [
+        {
+          "name": "knowledge_gaps",
+          "type": "string",
+          "description": "前置知识缺失项列表",
+          "required": true
+        }
+      ],
+      "outputs": [
+        {
+          "name": "teaching_sequence",
+          "type": "string",
+          "description": "含情境导入、可视化活动、定义建构、变式辨析四阶段的教学流程",
+          "required": true
+        }
+      ],
+      "prompt": "你是中学数学课程设计师，擅长概念进阶教学。请根据以下知识缺口，设计一个4阶段三角函数教学序列：1）生活情境导入；2）单位圆/直角三角形动态可视化活动；3）正弦/余弦定义的严谨建构；4）典型易混淆变式辨析任务。\n\n知识缺口：\n{knowledge_gaps}\n\n请严格按四阶段顺序输出教学流程，每阶段用‘|’分隔，不加标题。",
+      "prompt_template": null,
+      "system_prompt": "You are a helpful and highly intelligent assistant.",
+      "parse_mode": "str",
+      "parse_func": null,
+      "parse_title": null,
+      "tool_names": null
+    },
+    {
+      "name": "generate_adaptive_practice",
+      "description": "生成匹配教学序列的三层难度自适应练习题集",
+      "inputs": [
+        {
+          "name": "teaching_sequence",
+          "type": "string",
+          "description": "四阶段教学流程",
+          "required": true
+        }
+      ],
+      "outputs": [
+        {
+          "name": "practice_set",
+          "type": "string",
+          "description": "含基础巩固、应用迁移、综合探究三类题目的结构化题集",
+          "required": true
+        }
+      ],
+      "prompt": "你是AI出题引擎，遵循SOLO分类理论。请根据以下教学流程，为每个阶段生成3道题，共12道题，按基础（重表征）、迁移（重关联）、探究（重拓展）三级难度归类，并标注对应的教学阶段编号（1-4）。\n\n教学流程：\n{teaching_sequence}\n\n请输出JSON格式字符串：{\"basic\":[],\"transfer\":[],\"inquiry\":[]}，每类题干含'阶段X'标识。",
+      "prompt_template": null,
+      "system_prompt": "You are a helpful and highly intelligent assistant.",
+      "parse_mode": "str",
+      "parse_func": null,
+      "parse_title": null,
+      "tool_names": null
+    },
+    {
+      "name": "simulate_student_response_analysis",
+      "description": "模拟学生作答并进行多维错因归因分析",
+      "inputs": [
+        {
+          "name": "practice_set",
+          "type": "string",
+          "description": "三层难度练习题集",
+          "required": true
+        }
+      ],
+      "outputs": [
+        {
+          "name": "error_patterns",
+          "type": "string",
+          "description": "按认知维度（概念性/程序性/表征性）分类的典型错误模式",
+          "required": true
+        }
+      ],
+      "prompt": "你是认知诊断分析师，精通三角函数常见迷思概念。请模拟中等水平学生完成以下练习题集，识别高频错误类型，并按概念性错误（如混淆sin/cos定义）、程序性错误（如弧度换算失误）、表征性错误（如单位圆象限符号误判）三类归纳。\n\n题集：\n{practice_set}\n\n请输出三类错误模式，每类用‘>’开头，条目间用换行分隔，不加说明文字。",
+      "prompt_template": null,
+      "system_prompt": "You are a helpful and highly intelligent assistant.",
+      "parse_mode": "str",
+      "parse_func": null,
+      "parse_title": null,
+      "tool_names": null
+    },
+    {
+      "name": "recommend_intervention_strategy",
+      "description": "基于错因分析生成个性化干预策略与资源推荐",
+      "inputs": [
+        {
+          "name": "error_patterns",
+          "type": "string",
+          "description": "三类错误模式",
+          "required": true
+        }
+      ],
+      "outputs": [
+        {
+          "name": "intervention_plan",
+          "type": "string",
+          "description": "含微课链接、交互式工具、补偿练习的可执行干预方案",
+          "required": true
+        }
+      ],
+      "prompt": "你是学科教学教练，专长于精准干预。请针对以下三类错误模式，为教师提供可立即实施的干预方案：1）匹配1个5分钟微课链接（虚构但合理）；2）推荐1个动态几何交互工具操作要点；3）设计1道靶向补偿练习题（含答案）。\n\n错误模式：\n{error_patterns}\n\n请严格按‘微课：’‘工具：’‘练习：’三行输出，不加额外文本。",
+      "prompt_template": null,
+      "system_prompt": "You are a helpful and highly intelligent assistant.",
+      "parse_mode": "str",
+      "parse_func": null,
+      "parse_title": null,
+      "tool_names": null
+    }
+  ],
+  "_metadata": {
+    "generated_at": "2026-03-05T20:36:52.202385",
+    "source_search_result": "custom_goal",
+    "goal_summary": "三角函数教学设计与评估工作流"
+  }
+}

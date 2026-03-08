@@ -1,0 +1,12 @@
+# EvoAgentX 框架（从 GitHub 安装最新版）
+evoagentx @ git+https://github.com/EvoAgentX/EvoAgentX.git
+
+# 环境变量管理
+python-dotenv>=1.0.0
+
+# 搜索工具依赖（DDGSSearchToolkit / GoogleFreeSearchToolkit / WikipediaSearchToolkit）
+duckduckgo-search>=7.0.0
+googlesearch-python>=1.3.0
+wikipedia>=1.4.0
+beautifulsoup4>=4.12.0
+html2text>=2024.2.0

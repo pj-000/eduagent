@@ -1,0 +1,146 @@
+{
+  "class_name": "SequentialWorkFlowGraph",
+  "goal": "实现三角函数概念理解、技能训练与学习成效闭环评估的教学工作流",
+  "tasks": [
+    {
+      "name": "diagnose_prior_knowledge",
+      "description": "评估学生已有数学基础，识别三角函数前置知识掌握情况",
+      "inputs": [
+        {
+          "name": "student_profile",
+          "type": "string",
+          "description": "学生年级、已学内容、常见错误记录等背景信息",
+          "required": true
+        }
+      ],
+      "outputs": [
+        {
+          "name": "knowledge_gaps",
+          "type": "string",
+          "description": "识别出的前置知识薄弱点（如单位圆、相似三角形、函数概念等）",
+          "required": true
+        }
+      ],
+      "prompt": "你是教育诊断专家。请基于以下学生背景信息，分析其学习三角函数所需的前置数学知识掌握情况，精准定位3–5个关键知识缺口。\n\n学生信息：\n{student_profile}\n\n请仅输出结构化知识缺口列表，每项含知识点名称和简要依据。",
+      "prompt_template": null,
+      "system_prompt": "You are a helpful and highly intelligent assistant.",
+      "parse_mode": "str",
+      "parse_func": null,
+      "parse_title": null,
+      "tool_names": null
+    },
+    {
+      "name": "design_conceptual_sequence",
+      "description": "依据知识缺口设计渐进式三角函数概念教学序列",
+      "inputs": [
+        {
+          "name": "knowledge_gaps",
+          "type": "string",
+          "description": "前置知识薄弱点",
+          "required": true
+        }
+      ],
+      "outputs": [
+        {
+          "name": "teaching_sequence",
+          "type": "string",
+          "description": "包含具象→抽象、静态→动态的4阶段教学活动链（含教具/可视化建议）",
+          "required": true
+        }
+      ],
+      "prompt": "你是中学数学课程设计师。请基于以下知识缺口，设计一个符合认知发展规律的三角函数概念教学序列，覆盖从直角三角形定义→单位圆定义→周期性→函数图像的逻辑演进。\n\n知识缺口：\n{knowledge_gaps}\n\n请输出4阶段教学活动链，每阶段含目标、核心活动、可视化支持方式。",
+      "prompt_template": null,
+      "system_prompt": "You are a helpful and highly intelligent assistant.",
+      "parse_mode": "str",
+      "parse_func": null,
+      "parse_title": null,
+      "tool_names": null
+    },
+    {
+      "name": "generate_adaptive_practice",
+      "description": "生成匹配教学序列的分层练习题及即时反馈规则",
+      "inputs": [
+        {
+          "name": "teaching_sequence",
+          "type": "string",
+          "description": "4阶段教学活动链",
+          "required": true
+        }
+      ],
+      "outputs": [
+        {
+          "name": "adaptive_exercises",
+          "type": "string",
+          "description": "含3难度层级的练习题集，每题附错误类型识别规则与提示策略",
+          "required": true
+        }
+      ],
+      "prompt": "你是智能题库构建师。请根据以下教学序列，为每个阶段生成基础、应用、迁移三类练习题（共12题），每道题明确标注可能的典型错误类型及对应引导性反馈提示。\n\n教学序列：\n{teaching_sequence}\n\n请输出结构化题集，含题目、难度、错误类型、反馈提示四要素。",
+      "prompt_template": null,
+      "system_prompt": "You are a helpful and highly intelligent assistant.",
+      "parse_mode": "str",
+      "parse_func": null,
+      "parse_title": null,
+      "tool_names": null
+    },
+    {
+      "name": "simulate_student_response",
+      "description": "模拟不同水平学生对练习题的典型作答路径与常见误区",
+      "inputs": [
+        {
+          "name": "adaptive_exercises",
+          "type": "string",
+          "description": "分层练习题集及反馈规则",
+          "required": true
+        }
+      ],
+      "outputs": [
+        {
+          "name": "response_patterns",
+          "type": "string",
+          "description": "3类学生（初学者/中等/熟练）在各题上的典型解法、耗时、错误分布与认知瓶颈",
+          "required": true
+        }
+      ],
+      "prompt": "你是学习行为建模专家。请基于以下练习题集及反馈规则，模拟三类学生（初学者/中等/熟练）在每道题上的解题路径：包括常用策略、平均用时、高频错误选项、暴露的认知障碍。\n\n练习题集：\n{adaptive_exercises}\n\n请输出表格化响应模式，按学生类型+题目编号组织，聚焦可干预的认知节点。",
+      "prompt_template": null,
+      "system_prompt": "You are a helpful and highly intelligent assistant.",
+      "parse_mode": "str",
+      "parse_func": null,
+      "parse_title": null,
+      "tool_names": null
+    },
+    {
+      "name": "evaluate_learning_outcomes",
+      "description": "综合分析学生表现数据，生成个性化能力画像与教学干预建议",
+      "inputs": [
+        {
+          "name": "response_patterns",
+          "type": "string",
+          "description": "三类学生的典型响应模式",
+          "required": true
+        }
+      ],
+      "outputs": [
+        {
+          "name": "learning_report",
+          "type": "string",
+          "description": "含能力维度评分（定义理解/图像识读/周期分析/建模应用）、优势/短板归因、3条可操作教学建议",
+          "required": true
+        }
+      ],
+      "prompt": "你是教育评估分析师。请分析以下学生响应模式，从定义理解、图像识读、周期性分析、实际建模四个维度进行能力评级（1–5分），指出核心归因，并提出3条具体、可执行的教学干预建议。\n\n响应模式：\n{response_patterns}\n\n请严格按‘能力维度评分→归因分析→干预建议’三段式输出，不添加额外说明。",
+      "prompt_template": null,
+      "system_prompt": "You are a helpful and highly intelligent assistant.",
+      "parse_mode": "str",
+      "parse_func": null,
+      "parse_title": null,
+      "tool_names": null
+    }
+  ],
+  "_metadata": {
+    "generated_at": "2026-03-05T21:14:18.137181",
+    "source_search_result": "custom_goal",
+    "goal_summary": "三角函数教学设计与评估工作流"
+  }
+}

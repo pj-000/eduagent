@@ -1,0 +1,566 @@
+{
+  "class_name": "WorkFlowGraph",
+  "goal": "Design a workflow to build an AI-powered adaptive quiz generator for K12 math education",
+  "nodes": [
+    {
+      "class_name": "WorkFlowNode",
+      "name": "requirements_synthesis",
+      "description": "Extract and formalize functional and non-functional requirements from the goal, including pedagogical constraints (e.g., grade bands, standards alignment), adaptation criteria (e.g., difficulty scaling, misconception targeting), and AI capabilities (e.g., explanation generation, distractor diversity).",
+      "inputs": [
+        {
+          "class_name": "Parameter",
+          "name": "goal",
+          "type": "string",
+          "description": "The user's goal in textual format.",
+          "required": true
+        }
+      ],
+      "outputs": [
+        {
+          "class_name": "Parameter",
+          "name": "formal_requirements",
+          "type": "string",
+          "description": "A structured list of functional requirements (e.g., 'Generate quizzes with 3–7 questions per session'), non-functional requirements (e.g., 'Adapt question difficulty within 2 seconds of submission'), and pedagogical constraints (e.g., 'All Grade 5 questions must align to Common Core Standard 5.NF.A.1').",
+          "required": true
+        }
+      ],
+      "reason": "A precise, shared understanding of requirements is foundational for designing coherent, educationally valid components and avoiding scope drift.",
+      "agents": [
+        {
+          "name": "requirements_formalizer_agent",
+          "description": "This agent synthesizes the user's high-level goal into a precise, categorized, and educationally grounded specification of functional, non-functional, and pedagogical requirements — serving as the authoritative input for all downstream design tasks.",
+          "inputs": [
+            {
+              "name": "goal",
+              "type": "string",
+              "description": "The user's goal in textual format.",
+              "required": true
+            }
+          ],
+          "outputs": [
+            {
+              "name": "formal_requirements",
+              "type": "string",
+              "description": "A structured list of functional requirements (e.g., 'Generate quizzes with 3–7 questions per session'), non-functional requirements (e.g., 'Adapt question difficulty within 2 seconds of submission'), and pedagogical constraints (e.g., 'All Grade 5 questions must align to Common Core Standard 5.NF.A.1').",
+              "required": true
+            }
+          ],
+          "prompt": "### Objective\nTransform the user's goal into a precise, categorized, and educationally valid list of functional requirements, non-functional requirements, and pedagogical constraints — ensuring each item is concrete, measurable, and grounded in K12 math education practice.\n\n### Instructions\n1. Carefully read the user's goal: <input>{goal}</input>\n2. Identify all implied system behaviors and constraints. Classify each into exactly one of three categories:\n   - Functional: What the system *must do* (e.g., generate questions, infer proficiency, assemble quizzes). Phrase as imperative, active statements with quantifiable scope (e.g., 'Generate 3–7 questions per quiz session', not 'Quiz generation capability').\n   - Non-functional: How the system must perform (e.g., latency, accuracy, reliability, explainability). Include units and thresholds (e.g., 'Adapt difficulty within ≤2 seconds of submission', 'Explanation generation latency < 1.5s', 'Support ≥10,000 concurrent students').\n   - Pedagogical constraints: Domain-specific validity rules (e.g., grade-band boundaries, standards alignment, cognitive scaffolding, misconception modeling). Anchor explicitly to real frameworks (e.g., 'Grade 3–5 questions must map to Common Core domains OA, NF, MD; Grade 6–8 to RP, EE, G') or evidence-based practices (e.g., 'Distractors must reflect top 3 documented misconceptions for the target standard, sourced from NCTM or ETS research').\n3. For each category, list at least 3 distinct, non-redundant items. Avoid vague terms like 'smart', 'adaptive', or 'AI-powered' — replace with observable, testable behavior.\n4. Format the final output as a bulleted list with clear section headers: 'Functional Requirements:', 'Non-Functional Requirements:', 'Pedagogical Constraints:'. Use consistent, professional technical language.\n\n### Output Format\nYour final output should ALWAYS in the following format:\n\n## Thought\nBriefly explain the reasoning process for achieving the objective.\n\n## formal_requirements\nA structured list of functional requirements, non-functional requirements, and pedagogical constraints, formatted as described in the instructions."
+        }
+      ],
+      "status": "pending"
+    },
+    {
+      "class_name": "WorkFlowNode",
+      "name": "domain_modeling",
+      "description": "Define the core domain entities, attributes, and relationships required to support adaptive quiz generation, including StudentProfile, MathStandard, QuestionTemplate, ProficiencyScore, and QuizSession.",
+      "inputs": [
+        {
+          "class_name": "Parameter",
+          "name": "goal",
+          "type": "string",
+          "description": "The user's goal in textual format.",
+          "required": true
+        },
+        {
+          "class_name": "Parameter",
+          "name": "formal_requirements",
+          "type": "string",
+          "description": "The structured list of functional, non-functional, and pedagogical requirements.",
+          "required": true
+        }
+      ],
+      "outputs": [
+        {
+          "class_name": "Parameter",
+          "name": "domain_schema",
+          "type": "string",
+          "description": "A JSON-like schema describing key entities (e.g., 'StudentProfile': { 'grade_level': 'int', 'current_standards': ['string'], 'recent_performance': [{'standard_id': 'string', 'accuracy': 'float'}] }), with relationships and constraints.",
+          "required": true
+        }
+      ],
+      "reason": "A consistent domain model ensures interoperability between AI components (e.g., proficiency inference must feed into question selection) and guarantees curriculum fidelity and grade-appropriate scaffolding.",
+      "agents": [
+        {
+          "name": "domain_modeling_agent",
+          "description": "This agent constructs a pedagogically grounded, software-ready domain schema by extracting and formalizing core entities, attributes, and relationships from the user's goal and formal requirements.",
+          "inputs": [
+            {
+              "name": "goal",
+              "type": "string",
+              "description": "The user's goal in textual format.",
+              "required": true
+            },
+            {
+              "name": "formal_requirements",
+              "type": "string",
+              "description": "The structured list of functional, non-functional, and pedagogical requirements.",
+              "required": true
+            }
+          ],
+          "outputs": [
+            {
+              "name": "domain_schema",
+              "type": "string",
+              "description": "A JSON-like schema describing key entities (e.g., 'StudentProfile': { 'grade_level': 'int', 'current_standards': ['string'], 'recent_performance': [{'standard_id': 'string', 'accuracy': 'float'}] }), with relationships and constraints.",
+              "required": true
+            }
+          ],
+          "prompt": "### Objective\nConstruct a precise, pedagogically valid, and computationally actionable domain schema for an AI-powered adaptive quiz generator, identifying all core entities (StudentProfile, MathStandard, QuestionTemplate, ProficiencyScore, QuizSession), their attributes, data types, collections, nested structures, and inter-entity relationships — strictly derived from the user's goal and formal requirements.\n\n### Instructions\n1. Carefully read the user's goal: <input>{goal}</input>\n2. Analyze the formal requirements: <input>{formal_requirements}</input> — extract all explicit and implicit references to domain concepts (e.g., 'Grade 5', 'Common Core Standard', 'proficiency score', 'quiz session', 'distractor diversity').\n3. Identify the five required core entities: StudentProfile, MathStandard, QuestionTemplate, ProficiencyScore, and QuizSession.\n4. For each entity, infer:\n   - Required attributes (e.g., StudentProfile must include grade_level, current_standards, recent_performance based on pedagogical constraints);\n   - Data types (e.g., grade_level → int, accuracy → float, current_standards → list of strings);\n   - Nested structures (e.g., recent_performance is a list of objects with 'standard_id' and 'accuracy');\n   - Relationships (e.g., QuizSession references one StudentProfile and contains many QuestionTemplates; ProficiencyScore is associated with a StudentProfile and a MathStandard).\n5. Ensure schema reflects adaptation needs: e.g., ProficiencyScore must support per-standard tracking and temporal updates; QuestionTemplate must include fields enabling difficulty scaling and misconception targeting (e.g., 'target_standard', 'difficulty_level', 'misconception_tags').\n6. Format the final output as clean, human-readable JSON-like text — no markdown, no explanations, no code blocks — only the schema object with top-level keys as entity names and values as attribute dictionaries or type annotations.\n\n### Output Format\nYour final output should ALWAYS in the following format:\n\n## Thought\nBriefly explain the reasoning process for achieving the objective.\n\n## domain_schema\nA JSON-like schema describing key entities (e.g., 'StudentProfile': { 'grade_level': 'int', 'current_standards': ['string'], 'recent_performance': [{'standard_id': 'string', 'accuracy': 'float'}] }), with relationships and constraints."
+        }
+      ],
+      "status": "pending"
+    },
+    {
+      "class_name": "WorkFlowNode",
+      "name": "adaptation_logic_design",
+      "description": "Specify the rules and triggers governing how the system adapts quizzes in response to student interactions, including difficulty adjustment heuristics, topic reweighting strategies, and scaffolding escalation paths.",
+      "inputs": [
+        {
+          "class_name": "Parameter",
+          "name": "goal",
+          "type": "string",
+          "description": "The user's goal in textual format.",
+          "required": true
+        },
+        {
+          "class_name": "Parameter",
+          "name": "formal_requirements",
+          "type": "string",
+          "description": "The structured list of functional, non-functional, and pedagogical requirements.",
+          "required": true
+        },
+        {
+          "class_name": "Parameter",
+          "name": "domain_schema",
+          "type": "string",
+          "description": "The JSON-like schema of core domain entities and relationships.",
+          "required": true
+        }
+      ],
+      "outputs": [
+        {
+          "class_name": "Parameter",
+          "name": "adaptation_rules",
+          "type": "string",
+          "description": "A set of if-then rules and state-transition definitions (e.g., 'IF StudentProfile.grade_level == 6 AND ProficiencyScore[\"6.EE.A.2\"] < 0.6 THEN increase weight of scaffolded expression-building questions by 40%') governing quiz adaptation.",
+          "required": true
+        }
+      ],
+      "reason": "Explicit adaptation logic bridges pedagogical intent (from requirements) and technical implementation (in AI components), ensuring that 'adaptive' behavior is measurable, auditable, and educationally grounded.",
+      "agents": [
+        {
+          "name": "adaptation_rules_author",
+          "description": "This agent designs pedagogically sound, technically precise adaptation rules by interpreting the user's goal, formal requirements, and domain schema, ensuring all rules reference valid domain entities and support measurable adaptive behavior.",
+          "inputs": [
+            {
+              "name": "goal",
+              "type": "string",
+              "description": "The user's goal in textual format.",
+              "required": true
+            },
+            {
+              "name": "formal_requirements",
+              "type": "string",
+              "description": "The structured list of functional, non-functional, and pedagogical requirements.",
+              "required": true
+            },
+            {
+              "name": "domain_schema",
+              "type": "string",
+              "description": "The JSON-like schema of core domain entities and relationships.",
+              "required": true
+            }
+          ],
+          "outputs": [
+            {
+              "name": "adaptation_rules",
+              "type": "string",
+              "description": "A set of if-then rules and state-transition definitions (e.g., 'IF StudentProfile.grade_level == 6 AND ProficiencyScore[\"6.EE.A.2\"] < 0.6 THEN increase weight of scaffolded expression-building questions by 40%') governing quiz adaptation.",
+              "required": true
+            }
+          ],
+          "prompt": "### Objective\nDesign a set of precise, pedagogically grounded, and schema-compliant adaptation rules that govern how the quiz system responds to student interactions—including difficulty adjustment, topic reweighting, and scaffolding escalation.\n\n### Instructions\n1. Analyze the user's goal: <input>{goal}</input>, focusing on educational intent (e.g., 'K12 math', 'adaptive', 'misconception targeting').\n2. Extract key constraints and behaviors from the formal requirements: <input>{formal_requirements}</input>, especially those related to adaptation criteria (e.g., 'difficulty scaling', 'misconception targeting', 'response latency'), grade bands, and standards alignment.\n3. Parse the domain schema: <input>{domain_schema}</input> to identify exact entity names (e.g., 'StudentProfile', 'ProficiencyScore'), required attributes (e.g., 'grade_level', 'accuracy', 'standard_id'), and valid relationship patterns (e.g., 'ProficiencyScore' is a dict mapping standard IDs to float scores).\n4. Generate exactly five (5) distinct if-then rules that collectively cover:\n   - Difficulty adjustment (e.g., based on accuracy AND response time);\n   - Topic reweighting (e.g., increasing weight for standards where ProficiencyScore[\"<id>\"] < threshold);\n   - Scaffolding escalation (e.g., switching question type or adding hints when mastery is low);\n   - Grade- or standard-specific logic (e.g., applying different heuristics for Grade 3 vs Grade 7);\n   - Fallback or error-handling behavior (e.g., defaulting to medium difficulty if data is missing).\n5. Ensure every rule uses ONLY attributes and structures explicitly defined in the domain_schema — do NOT invent fields or types.\n6. Format each rule as a clear, executable English conditional statement using exact field names (e.g., 'StudentProfile.grade_level', 'ProficiencyScore[\"5.NF.A.1\"]'), with concrete thresholds and actions (e.g., 'increase weight by 30%', 'switch to hint-enabled fill-in format').\n7. Output ONLY the five rules as a newline-separated list — no numbering, no markdown, no explanations.\n\n### Output Format\nYour final output should ALWAYS in the following format:\n\n## Thought\nBriefly explain the reasoning process for achieving the objective.\n\n## adaptation_rules\nA set of if-then rules and state-transition definitions (e.g., 'IF StudentProfile.grade_level == 6 AND ProficiencyScore[\"6.EE.A.2\"] < 0.6 THEN increase weight of scaffolded expression-building questions by 40%') governing quiz adaptation."
+        }
+      ],
+      "status": "pending"
+    },
+    {
+      "class_name": "WorkFlowNode",
+      "name": "ai_component_specification",
+      "description": "Decompose the 'AI-powered' layer into three modular, interface-defined components: (1) QuestionGenerator (input: MathStandard + difficulty; output: question + distractors + explanation), (2) ProficiencyInferenceEngine (input: QuizSession responses; output: updated ProficiencyScore per standard), and (3) QuizAssembler (input: StudentProfile + adaptation_rules + generated questions; output: ordered QuizSession).",
+      "inputs": [
+        {
+          "class_name": "Parameter",
+          "name": "goal",
+          "type": "string",
+          "description": "The user's goal in textual format.",
+          "required": true
+        },
+        {
+          "class_name": "Parameter",
+          "name": "formal_requirements",
+          "type": "string",
+          "description": "The structured list of functional, non-functional, and pedagogical requirements.",
+          "required": true
+        },
+        {
+          "class_name": "Parameter",
+          "name": "domain_schema",
+          "type": "string",
+          "description": "The JSON-like schema of core domain entities and relationships.",
+          "required": true
+        },
+        {
+          "class_name": "Parameter",
+          "name": "adaptation_rules",
+          "type": "string",
+          "description": "The set of if-then rules and state-transition definitions governing quiz adaptation.",
+          "required": true
+        }
+      ],
+      "outputs": [
+        {
+          "class_name": "Parameter",
+          "name": "ai_component_interfaces",
+          "type": "string",
+          "description": "A precise interface specification for each of the three AI components, including input schemas, output schemas, expected latency, and failure-handling behavior (e.g., 'QuestionGenerator must return a valid JSON object with keys: \"stem\", \"options\", \"correct_answer\", \"explanation\" within 1.5s').",
+          "required": true
+        }
+      ],
+      "reason": "Modular specification enables parallel development, testing, and replacement of AI subsystems (e.g., swapping LLM-based generation for template-based generation) while preserving workflow integrity and adaptation semantics.",
+      "agents": [
+        {
+          "name": "question_generator_specifier",
+          "description": "Generates a precise interface specification for the QuestionGenerator component, including input schema (MathStandard ID, difficulty level), output schema (stem, options, correct_answer, explanation), latency requirement, and failure-handling behavior, derived from the user goal, formal requirements, and domain schema.",
+          "inputs": [
+            {
+              "name": "goal",
+              "type": "string",
+              "description": "The user's goal in textual format.",
+              "required": true
+            },
+            {
+              "name": "formal_requirements",
+              "type": "string",
+              "description": "The structured list of functional, non-functional, and pedagogical requirements.",
+              "required": true
+            },
+            {
+              "name": "domain_schema",
+              "type": "string",
+              "description": "The JSON-like schema of core domain entities and relationships.",
+              "required": true
+            }
+          ],
+          "outputs": [
+            {
+              "name": "question_generator_interface",
+              "type": "string",
+              "description": "A self-contained interface specification for QuestionGenerator, e.g., 'QuestionGenerator accepts {\"standard_id\": \"string\", \"difficulty\": \"int (1–5)\"} and returns {\"stem\": \"string\", \"options\": [\"string\"], \"correct_answer\": \"int\", \"explanation\": \"string\"} within 1.5s; on failure, returns {\"error\": \"string\", \"fallback_strategy\": \"template_retrieval\"}'.",
+              "required": true
+            }
+          ],
+          "prompt": "### Objective\nGenerate a precise, production-ready interface specification for the QuestionGenerator AI component, grounded in the user goal, formal requirements, and domain schema.\n\n### Instructions\n1. Extract pedagogical and functional constraints relevant to question generation from <input>{goal}</input> and <input>{formal_requirements}</input> — especially those concerning MathStandard alignment, difficulty scaling, distractor diversity, and explanation generation.\n2. Consult <input>{domain_schema}</input> to identify exact field names and types for required inputs (e.g., 'MathStandard' attributes like 'id', 'grade_band', 'ccss_code') and expected outputs (e.g., 'QuestionTemplate' structure).\n3. Define the input schema: must include at minimum 'standard_id' (string) and 'difficulty' (int 1–5), aligned with domain_schema.\n4. Define the output schema: must include 'stem' (string), 'options' (list of strings), 'correct_answer' (index or value), and 'explanation' (string), as mandated by formal_requirements.\n5. Assign a strict latency bound (e.g., ≤1.5s) based on non-functional requirements for adaptation speed.\n6. Specify failure-handling: define error format and fallback strategy (e.g., template-based generation or cached item).\n7. Output only the complete, self-contained interface specification as a single coherent string.\n\n### Output Format\nYour final output should ALWAYS in the following format:\n\n## Thought\nBriefly explain the reasoning process for achieving the objective.\n\n## question_generator_interface\nA self-contained interface specification for QuestionGenerator, e.g., 'QuestionGenerator accepts {\"standard_id\": \"string\", \"difficulty\": \"int (1–5)\"} and returns {\"stem\": \"string\", \"options\": [\"string\"], \"correct_answer\": \"int\", \"explanation\": \"string\"} within 1.5s; on failure, returns {\"error\": \"string\", \"fallback_strategy\": \"template_retrieval\"}'."
+        },
+        {
+          "name": "proficiency_inference_specifier",
+          "description": "Generates a precise interface specification for the ProficiencyInferenceEngine component, including input schema (QuizSession responses), output schema (ProficiencyScore per standard), latency requirement, and failure-handling behavior, derived from the user goal, formal requirements, and domain schema.",
+          "inputs": [
+            {
+              "name": "goal",
+              "type": "string",
+              "description": "The user's goal in textual format.",
+              "required": true
+            },
+            {
+              "name": "formal_requirements",
+              "type": "string",
+              "description": "The structured list of functional, non-functional, and pedagogical requirements.",
+              "required": true
+            },
+            {
+              "name": "domain_schema",
+              "type": "string",
+              "description": "The JSON-like schema of core domain entities and relationships.",
+              "required": true
+            }
+          ],
+          "outputs": [
+            {
+              "name": "proficiency_inference_interface",
+              "type": "string",
+              "description": "A self-contained interface specification for ProficiencyInferenceEngine, e.g., 'ProficiencyInferenceEngine accepts {\"session_id\": \"string\", \"responses\": [{\"question_id\": \"string\", \"selected_option\": \"int\", \"is_correct\": \"bool\"}]} and returns {\"scores\": [{\"standard_id\": \"string\", \"accuracy\": \"float\", \"confidence\": \"float\"}]} within 800ms; on failure, returns {\"error\": \"string\", \"fallback_strategy\": \"last_known_score\"}'.",
+              "required": true
+            }
+          ],
+          "prompt": "### Objective\nGenerate a precise, production-ready interface specification for the ProficiencyInferenceEngine AI component, grounded in the user goal, formal requirements, and domain schema.\n\n### Instructions\n1. Extract inference-related constraints from <input>{goal}</input> and <input>{formal_requirements}</input> — especially those concerning real-time scoring, standard-level granularity, confidence estimation, and adaptation triggers.\n2. Consult <input>{domain_schema}</input> to identify exact structure of 'QuizSession' (e.g., response format, question identifiers) and 'ProficiencyScore' (e.g., fields like 'standard_id', 'accuracy', 'confidence').\n3. Define the input schema: must accept a QuizSession-derived payload containing at minimum 'session_id' and a list of 'responses' with 'question_id', 'selected_option', and 'is_correct'.\n4. Define the output schema: must return a list of per-standard scores, each with 'standard_id', 'accuracy' (float 0.0–1.0), and 'confidence' (float 0.0–1.0), matching domain_schema.\n5. Assign a strict latency bound (e.g., ≤800ms) consistent with non-functional adaptation timing requirements.\n6. Specify failure-handling: define error format and fallback strategy (e.g., returning last-known score or default 0.5 accuracy).\n7. Output only the complete, self-contained interface specification as a single coherent string.\n\n### Output Format\nYour final output should ALWAYS in the following format:\n\n## Thought\nBriefly explain the reasoning process for achieving the objective.\n\n## proficiency_inference_interface\nA self-contained interface specification for ProficiencyInferenceEngine, e.g., 'ProficiencyInferenceEngine accepts {\"session_id\": \"string\", \"responses\": [{\"question_id\": \"string\", \"selected_option\": \"int\", \"is_correct\": \"bool\"}]} and returns {\"scores\": [{\"standard_id\": \"string\", \"accuracy\": \"float\", \"confidence\": \"float\"}]} within 800ms; on failure, returns {\"error\": \"string\", \"fallback_strategy\": \"last_known_score\"}'."
+        },
+        {
+          "name": "quiz_assembler_specifier",
+          "description": "Generates a precise interface specification for the QuizAssembler component, including input schema (StudentProfile, adaptation_rules, list of generated questions), output schema (ordered QuizSession), latency requirement, and failure-handling behavior, derived from the user goal, formal requirements, domain schema, and adaptation_rules.",
+          "inputs": [
+            {
+              "name": "goal",
+              "type": "string",
+              "description": "The user's goal in textual format.",
+              "required": true
+            },
+            {
+              "name": "formal_requirements",
+              "type": "string",
+              "description": "The structured list of functional, non-functional, and pedagogical requirements.",
+              "required": true
+            },
+            {
+              "name": "domain_schema",
+              "type": "string",
+              "description": "The JSON-like schema of core domain entities and relationships.",
+              "required": true
+            },
+            {
+              "name": "adaptation_rules",
+              "type": "string",
+              "description": "The set of if-then rules and state-transition definitions governing quiz adaptation.",
+              "required": true
+            }
+          ],
+          "outputs": [
+            {
+              "name": "quiz_assembler_interface",
+              "type": "string",
+              "description": "A self-contained interface specification for QuizAssembler, e.g., 'QuizAssembler accepts {\"student_profile\": {...}, \"adaptation_rules\": \"string\", \"questions\": [{...}]} and returns {\"id\": \"string\", \"questions\": [{\"id\": \"string\", \"position\": \"int\"}], \"metadata\": {\"total_time_limit\": \"int\", \"difficulty_curve\": [\"float\"]}} within 300ms; on failure, returns {\"error\": \"string\", \"fallback_strategy\": \"linear_ordering\"}'.",
+              "required": true
+            }
+          ],
+          "prompt": "### Objective\nGenerate a precise, production-ready interface specification for the QuizAssembler AI component, grounded in the user goal, formal requirements, domain schema, and adaptation_rules.\n\n### Instructions\n1. Extract assembly-related constraints from <input>{goal}</input> and <input>{formal_requirements}</input> — especially those concerning ordering logic, time limits, scaffolding, and dynamic question selection.\n2. Consult <input>{domain_schema}</input> to identify exact structure of 'StudentProfile' (e.g., 'grade_level', 'current_standards') and 'QuizSession' (e.g., 'questions' array, 'metadata' fields).\n3. Use <input>{adaptation_rules}</input> to determine required inputs: the interface must explicitly accept 'adaptation_rules' as a string or structured rule set, since rules drive weighting, sequencing, and fallback paths.\n4. Define the input schema: must include 'student_profile' (object), 'adaptation_rules' (string or object), and 'questions' (list of QuestionGenerator outputs).\n5. Define the output schema: must match 'QuizSession' structure from domain_schema, including ordered 'questions' with positional metadata and 'metadata' such as 'total_time_limit' and 'difficulty_curve'.\n6. Assign a strict latency bound (e.g., ≤300ms) — lowest among AI components, as assembly is lightweight orchestration.\n7. Specify failure-handling: define error format and fallback strategy (e.g., linear ordering or random shuffle).\n8. Output only the complete, self-contained interface specification as a single coherent string.\n\n### Output Format\nYour final output should ALWAYS in the following format:\n\n## Thought\nBriefly explain the reasoning process for achieving the objective.\n\n## quiz_assembler_interface\nA self-contained interface specification for QuizAssembler, e.g., 'QuizAssembler accepts {\"student_profile\": {...}, \"adaptation_rules\": \"string\", \"questions\": [{...}]} and returns {\"id\": \"string\", \"questions\": [{\"id\": \"string\", \"position\": \"int\"}], \"metadata\": {\"total_time_limit\": \"int\", \"difficulty_curve\": [\"float\"]}} within 300ms; on failure, returns {\"error\": \"string\", \"fallback_strategy\": \"linear_ordering\"}'."
+        },
+        {
+          "name": "ai_interface_composer",
+          "description": "Composes the three individual AI component interface specifications into a single, cohesive, and consistently formatted ai_component_interfaces string, validating alignment with goal, formal_requirements, domain_schema, and adaptation_rules.",
+          "inputs": [
+            {
+              "name": "goal",
+              "type": "string",
+              "description": "The user's goal in textual format.",
+              "required": true
+            },
+            {
+              "name": "formal_requirements",
+              "type": "string",
+              "description": "The structured list of functional, non-functional, and pedagogical requirements.",
+              "required": true
+            },
+            {
+              "name": "domain_schema",
+              "type": "string",
+              "description": "The JSON-like schema of core domain entities and relationships.",
+              "required": true
+            },
+            {
+              "name": "adaptation_rules",
+              "type": "string",
+              "description": "The set of if-then rules and state-transition definitions governing quiz adaptation.",
+              "required": true
+            },
+            {
+              "name": "question_generator_interface",
+              "type": "string",
+              "description": "The interface specification for QuestionGenerator.",
+              "required": true
+            },
+            {
+              "name": "proficiency_inference_interface",
+              "type": "string",
+              "description": "The interface specification for ProficiencyInferenceEngine.",
+              "required": true
+            },
+            {
+              "name": "quiz_assembler_interface",
+              "type": "string",
+              "description": "The interface specification for QuizAssembler.",
+              "required": true
+            }
+          ],
+          "outputs": [
+            {
+              "name": "ai_component_interfaces",
+              "type": "string",
+              "description": "A precise, unified interface specification for all three AI components, formatted as a single multi-paragraph string with clear headings, consistent schema notation, latency bounds, and failure-handling clauses — fully traceable to inputs.",
+              "required": true
+            }
+          ],
+          "prompt": "### Objective\nCompose the three individual AI component interface specifications into a single, human- and machine-readable `ai_component_interfaces` string that satisfies all constraints from the goal, formal_requirements, domain_schema, and adaptation_rules.\n\n### Instructions\n1. Review <input>{goal}</input> to ensure the final spec reflects K12 math education context (e.g., mentions Common Core, grade bands, misconceptions).\n2. Cross-check <input>{formal_requirements}</input> to guarantee all functional (e.g., explanation generation), non-functional (e.g., latency), and pedagogical (e.g., standards alignment) items are explicitly addressed in at least one component interface.\n3. Validate that all schema references in <input>{question_generator_interface}</input>, <input>{proficiency_inference_interface}</input>, and <input>{quiz_assembler_interface}</input> align with entity/field names in <input>{domain_schema}</input> (e.g., 'MathStandard.id', 'ProficiencyScore.accuracy').\n4. Confirm <input>{adaptation_rules}</input> is meaningfully reflected — especially in QuizAssembler’s inputs and behavior.\n5. Format the final output as a clean, numbered or sectioned specification: start with an overview paragraph, then three clearly labeled subsections ('QuestionGenerator', 'ProficiencyInferenceEngine', 'QuizAssembler'), each quoting the respective interface string verbatim but rewritten for stylistic consistency (e.g., uniform JSON key quoting, latency phrasing, fallback wording).\n6. Add a concluding sentence affirming modularity, testability, and replaceability — fulfilling the sub-task's stated reason.\n7. Output only the composed `ai_component_interfaces` string — no extra commentary or formatting.\n\n### Output Format\nYour final output should ALWAYS in the following format:\n\n## Thought\nBriefly explain the reasoning process for achieving the objective.\n\n## ai_component_interfaces\nA precise, unified interface specification for all three AI components, formatted as a single multi-paragraph string with clear headings, consistent schema notation, latency bounds, and failure-handling clauses — fully traceable to inputs."
+        }
+      ],
+      "status": "pending"
+    },
+    {
+      "class_name": "WorkFlowNode",
+      "name": "workflow_integration_and_validation",
+      "description": "Define the end-to-end workflow sequence, data flow dependencies, and validation strategy—including simulation-based testing (e.g., synthetic student profiles), alignment checks against curriculum standards, and metrics for adaptation efficacy (e.g., 'time-to-mastery reduction').",
+      "inputs": [
+        {
+          "class_name": "Parameter",
+          "name": "goal",
+          "type": "string",
+          "description": "The user's goal in textual format.",
+          "required": true
+        },
+        {
+          "class_name": "Parameter",
+          "name": "formal_requirements",
+          "type": "string",
+          "description": "The structured list of functional, non-functional, and pedagogical requirements.",
+          "required": true
+        },
+        {
+          "class_name": "Parameter",
+          "name": "domain_schema",
+          "type": "string",
+          "description": "The JSON-like schema of core domain entities and relationships.",
+          "required": true
+        },
+        {
+          "class_name": "Parameter",
+          "name": "adaptation_rules",
+          "type": "string",
+          "description": "The set of if-then rules and state-transition definitions governing quiz adaptation.",
+          "required": true
+        },
+        {
+          "class_name": "Parameter",
+          "name": "ai_component_interfaces",
+          "type": "string",
+          "description": "The precise interface specification for each of the three AI components.",
+          "required": true
+        }
+      ],
+      "outputs": [
+        {
+          "class_name": "Parameter",
+          "name": "integrated_workflow_spec",
+          "type": "string",
+          "description": "A complete, executable workflow specification: a numbered sequence of steps (e.g., '1. Receive student ID → 2. Load StudentProfile → 3. Query ProficiencyInferenceEngine → 4. Apply adaptation_rules → 5. Call QuestionGenerator N times → 6. Assemble via QuizAssembler → 7. Log QuizSession'), with explicit inputs/outputs per step, error-handling branches, and validation checkpoints.",
+          "required": true
+        }
+      ],
+      "reason": "Integration ensures all components operate cohesively as a system, while validation criteria ensure the designed workflow meets educational goals and can be objectively evaluated before implementation.",
+      "agents": [
+        {
+          "name": "workflow_integrator_agent",
+          "description": "This agent synthesizes all upstream design artifacts into a precise, executable, and validated end-to-end workflow specification for the adaptive quiz system.",
+          "inputs": [
+            {
+              "name": "goal",
+              "type": "string",
+              "description": "The user's goal in textual format.",
+              "required": true
+            },
+            {
+              "name": "formal_requirements",
+              "type": "string",
+              "description": "The structured list of functional, non-functional, and pedagogical requirements.",
+              "required": true
+            },
+            {
+              "name": "domain_schema",
+              "type": "string",
+              "description": "The JSON-like schema of core domain entities and relationships.",
+              "required": true
+            },
+            {
+              "name": "adaptation_rules",
+              "type": "string",
+              "description": "The set of if-then rules and state-transition definitions governing quiz adaptation.",
+              "required": true
+            },
+            {
+              "name": "ai_component_interfaces",
+              "type": "string",
+              "description": "The precise interface specification for each of the three AI components.",
+              "required": true
+            }
+          ],
+          "outputs": [
+            {
+              "name": "integrated_workflow_spec",
+              "type": "string",
+              "description": "A complete, executable workflow specification: a numbered sequence of steps (e.g., '1. Receive student ID → 2. Load StudentProfile → 3. Query ProficiencyInferenceEngine → 4. Apply adaptation_rules → 5. Call QuestionGenerator N times → 6. Assemble via QuizAssembler → 7. Log QuizSession'), with explicit inputs/outputs per step, error-handling branches, and validation checkpoints.",
+              "required": true
+            }
+          ],
+          "prompt": "### Objective\nSynthesize the user's goal, formal requirements, domain schema, adaptation rules, and AI component interfaces into a complete, executable, and validated end-to-end workflow specification for the adaptive quiz generator.\n\n### Instructions\n1. Parse <input>{goal}</input> to identify the core educational mission (e.g., 'K12 math adaptive quizzes') and scope boundaries.\n2. Extract critical constraints from <input>{formal_requirements}</input>, especially pedagogical (e.g., grade bands, standards alignment), adaptation (e.g., difficulty scaling latency), and AI capabilities (e.g., explanation generation).\n3. Map entities and relationships from <input>{domain_schema}</input> to define data carriers (e.g., 'StudentProfile', 'MathStandard', 'QuizSession') and their attributes used across workflow steps.\n4. Translate <input>{adaptation_rules}</input> into concrete conditional triggers within the workflow (e.g., 'IF ProficiencyScore < 0.6 THEN escalate scaffolding' becomes Step 4b with defined input/output).\n5. Integrate <input>{ai_component_interfaces}</input> as black-box service calls, respecting their input schemas (e.g., 'QuestionGenerator requires MathStandard + difficulty'), output schemas (e.g., 'must return \"stem\", \"options\", \"correct_answer\", \"explanation\"'), and SLAs (e.g., '1.5s latency').\n6. Construct a numbered workflow (1–10 max) where each step specifies: (a) action, (b) required inputs (referencing prior steps or inputs), (c) outputs produced, (d) error-handling branch (e.g., 'IF QuestionGenerator timeout > 1.5s → fallback to cached template'), and (e) validation checkpoint (e.g., 'CHECK: All generated questions cite a MathStandard ID present in domain_schema').\n7. Include three mandatory validation strategies: (i) simulation-based testing using synthetic student profiles, (ii) curriculum alignment verification against formal_requirements' standards, and (iii) efficacy metrics (e.g., 'time-to-mastery reduction') tied to adaptation_rules.\n8. Output only the final integrated workflow spec as a plain-text, human- and machine-readable specification — no commentary, no markdown, no code blocks.\n\n### Output Format\nYour final output should ALWAYS in the following format:\n\n## Thought\nBriefly explain the reasoning process for achieving the objective.\n\n## integrated_workflow_spec\nA complete, executable workflow specification: a numbered sequence of steps (e.g., '1. Receive student ID → 2. Load StudentProfile → 3. Query ProficiencyInferenceEngine → 4. Apply adaptation_rules → 5. Call QuestionGenerator N times → 6. Assemble via QuizAssembler → 7. Log QuizSession'), with explicit inputs/outputs per step, error-handling branches, and validation checkpoints."
+        }
+      ],
+      "status": "pending"
+    }
+  ],
+  "edges": [
+    {
+      "class_name": "WorkFlowEdge",
+      "source": "requirements_synthesis",
+      "target": "domain_modeling",
+      "priority": 0
+    },
+    {
+      "class_name": "WorkFlowEdge",
+      "source": "requirements_synthesis",
+      "target": "adaptation_logic_design",
+      "priority": 0
+    },
+    {
+      "class_name": "WorkFlowEdge",
+      "source": "requirements_synthesis",
+      "target": "ai_component_specification",
+      "priority": 0
+    },
+    {
+      "class_name": "WorkFlowEdge",
+      "source": "requirements_synthesis",
+      "target": "workflow_integration_and_validation",
+      "priority": 0
+    },
+    {
+      "class_name": "WorkFlowEdge",
+      "source": "domain_modeling",
+      "target": "adaptation_logic_design",
+      "priority": 0
+    },
+    {
+      "class_name": "WorkFlowEdge",
+      "source": "domain_modeling",
+      "target": "ai_component_specification",
+      "priority": 0
+    },
+    {
+      "class_name": "WorkFlowEdge",
+      "source": "domain_modeling",
+      "target": "workflow_integration_and_validation",
+      "priority": 0
+    },
+    {
+      "class_name": "WorkFlowEdge",
+      "source": "adaptation_logic_design",
+      "target": "ai_component_specification",
+      "priority": 0
+    },
+    {
+      "class_name": "WorkFlowEdge",
+      "source": "adaptation_logic_design",
+      "target": "workflow_integration_and_validation",
+      "priority": 0
+    },
+    {
+      "class_name": "WorkFlowEdge",
+      "source": "ai_component_specification",
+      "target": "workflow_integration_and_validation",
+      "priority": 0
+    }
+  ],
+  "_metadata": {
+    "generated_at": "2026-03-05T20:49:50.347836",
+    "source_search_result": "custom_goal",
+    "goal_summary": "Design a workflow to build an AI-powered adaptive quiz generator for K12 math education"
+  }
+}

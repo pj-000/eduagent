@@ -1,0 +1,529 @@
+{
+  "class_name": "WorkFlowGraph",
+  "goal": "强化学习教案设计与评估工作流：设计一个完整的强化学习教育教学方案，包括教学目标、知识点讲解、案例演示、练习设计、评估方法等",
+  "nodes": [
+    {
+      "class_name": "WorkFlowNode",
+      "name": "audience_and_context_analysis",
+      "description": "Identify target learner profile, prerequisites, course format (e.g., 10-week undergraduate module), and constraints (e.g., no GPU access) to scope the curriculum appropriately.",
+      "inputs": [
+        {
+          "class_name": "Parameter",
+          "name": "goal",
+          "type": "string",
+          "description": "The user's goal in textual format.",
+          "required": true
+        }
+      ],
+      "outputs": [
+        {
+          "class_name": "Parameter",
+          "name": "learner_profile",
+          "type": "string",
+          "description": "A concise summary of target learners (e.g., 'second-year CS undergraduates with Python and basic probability knowledge') and contextual constraints (e.g., '60-minute weekly lectures + 90-minute labs, no cloud compute').",
+          "required": true
+        }
+      ],
+      "reason": "Effective instructional design requires grounding in learner background and logistical realities; this ensures alignment of complexity, tooling, and pacing.",
+      "agents": [
+        {
+          "name": "learner_profiler_agent",
+          "description": "This agent infers and synthesizes a realistic, context-aware learner profile from the user's broad educational goal, grounding the entire RL curriculum design in audience reality.",
+          "inputs": [
+            {
+              "name": "goal",
+              "type": "string",
+              "description": "The user's goal in textual format.",
+              "required": true
+            }
+          ],
+          "outputs": [
+            {
+              "name": "learner_profile",
+              "type": "string",
+              "description": "A concise summary of target learners (e.g., 'second-year CS undergraduates with Python and basic probability knowledge') and contextual constraints (e.g., '60-minute weekly lectures + 90-minute labs, no cloud compute').",
+              "required": true
+            }
+          ],
+          "prompt": "### Objective\nInfer and synthesize a realistic, educationally grounded learner profile — including academic level, prerequisite knowledge, and logistical constraints — solely from the user's stated goal for an RL teaching curriculum.\n\n### Instructions\n1. Carefully read the user's goal: <input>{goal}</input>\n2. Identify implicit or explicit clues about audience (e.g., 'undergrads', 'professionals', 'self-learners'), discipline (e.g., 'CS', 'engineering', 'data science'), and technical background (e.g., 'familiar with Python', 'know linear algebra').\n3. If no specifics are given, assume a standard, widely applicable context: second-year computer science or engineering undergraduates with working knowledge of Python, basic calculus, and introductory probability — but no prior RL or deep learning exposure.\n4. Infer reasonable course logistics: assume a semester-long (10–12 week), hybrid format with 60-minute theory lectures and 90-minute hands-on labs; constrain infrastructure to local CPU-only execution (no GPU/cloud required) unless the goal explicitly mentions advanced hardware or deployment.\n5. Synthesize all inferences into a single, concise, natural-language sentence that clearly states both learner characteristics and constraints — avoiding vagueness (e.g., don’t say 'some programming experience'; say 'proficient in Python with NumPy and Matplotlib').\n6. Output only the final `learner_profile` string — no extra text, no markdown, no explanations.\n\n### Output Format\nYour final output should ALWAYS in the following format:\n\n## Thought\nBriefly explain the reasoning process for achieving the objective.\n\n## learner_profile\nA concise summary of target learners (e.g., 'second-year CS undergraduates with Python and basic probability knowledge') and contextual constraints (e.g., '60-minute weekly lectures + 90-minute labs, no cloud compute')."
+        }
+      ],
+      "status": "pending"
+    },
+    {
+      "class_name": "WorkFlowNode",
+      "name": "learning_objectives_definition",
+      "description": "Define 4–6 specific, measurable, and hierarchical learning objectives using Bloom's taxonomy verbs, covering conceptual understanding, algorithmic reasoning, implementation, and critical evaluation of RL.",
+      "inputs": [
+        {
+          "class_name": "Parameter",
+          "name": "goal",
+          "type": "string",
+          "description": "The user's goal in textual format.",
+          "required": true
+        },
+        {
+          "class_name": "Parameter",
+          "name": "learner_profile",
+          "type": "string",
+          "description": "The concise summary of target learners and contextual constraints.",
+          "required": true
+        }
+      ],
+      "outputs": [
+        {
+          "class_name": "Parameter",
+          "name": "learning_objectives",
+          "type": "string",
+          "description": "A numbered list of SMART learning objectives (e.g., 'Given a real-world sequential decision problem, students will formulate it as an MDP by identifying states, actions, rewards, and transition dynamics.').",
+          "required": true
+        }
+      ],
+      "reason": "Clear objectives drive all subsequent design decisions (content, cases, exercises, assessments) and enable alignment validation; they serve as the curriculum's north star.",
+      "agents": [
+        {
+          "name": "bloom_aligned_objectives_agent",
+          "description": "This agent synthesizes the user's educational goal and learner profile into a set of 4–6 SMART learning objectives ordered by Bloom's taxonomy, ensuring coverage across conceptual, algorithmic, implementation, and evaluative dimensions of reinforcement learning.",
+          "inputs": [
+            {
+              "name": "goal",
+              "type": "string",
+              "description": "The user's goal in textual format.",
+              "required": true
+            },
+            {
+              "name": "learner_profile",
+              "type": "string",
+              "description": "The concise summary of target learners and contextual constraints.",
+              "required": true
+            }
+          ],
+          "outputs": [
+            {
+              "name": "learning_objectives",
+              "type": "string",
+              "description": "A numbered list of SMART learning objectives (e.g., 'Given a real-world sequential decision problem, students will formulate it as an MDP by identifying states, actions, rewards, and transition dynamics.')",
+              "required": true
+            }
+          ],
+          "prompt": "### Objective\nGenerate exactly 4 to 6 specific, measurable, hierarchical learning objectives for a reinforcement learning course, aligned with Bloom's taxonomy and grounded in the user's goal and learner profile.\n\n### Instructions\n1. Carefully read the user's educational goal: <input>{goal}</input>\n2. Analyze the learner profile and constraints: <input>{learner_profile}</input>. Note prerequisites (e.g., Python, probability), course format (e.g., weekly lectures + labs), and resource limits (e.g., no GPU/cloud).\n3. Construct objectives that progress hierarchically through Bloom's taxonomy levels: start with foundational (e.g., 'define', 'identify'), advance to application (e.g., 'formulate', 'apply'), then analysis/evaluation (e.g., 'compare', 'critique'), and finally creation (e.g., 'design', 'propose').\n4. Ensure full coverage across four RL competency dimensions: (a) conceptual understanding (e.g., MDPs, reward shaping), (b) algorithmic reasoning (e.g., Bellman equations, convergence properties), (c) implementation (e.g., coding value iteration or Q-learning in Python), and (d) critical evaluation (e.g., diagnosing bias/variance trade-offs, ethical implications of reward design).\n5. Phrase each objective using SMART criteria: Specific (clear context/task), Measurable (observable verb + outcome), Achievable (within learner capabilities and course constraints), Relevant (directly tied to RL), and Time-bound (implicitly feasible within the stated course format).\n6. Output only a numbered list (1.–6.), each item a complete sentence beginning with 'Students will...' or 'Given X, students will...', following the example format.\n\n### Output Format\nYour final output should ALWAYS in the following format:\n\n## Thought\nBriefly explain the reasoning process for achieving the objective.\n\n## learning_objectives\nA numbered list of SMART learning objectives (e.g., 'Given a real-world sequential decision problem, students will formulate it as an MDP by identifying states, actions, rewards, and transition dynamics.')"
+        }
+      ],
+      "status": "pending"
+    },
+    {
+      "class_name": "WorkFlowNode",
+      "name": "core_concepts_structuring",
+      "description": "Decompose reinforcement learning into a logically sequenced, dependency-aware set of core concepts and topics, mapping each to its corresponding learning objective and estimating instructional time.",
+      "inputs": [
+        {
+          "class_name": "Parameter",
+          "name": "goal",
+          "type": "string",
+          "description": "The user's goal in textual format.",
+          "required": true
+        },
+        {
+          "class_name": "Parameter",
+          "name": "learner_profile",
+          "type": "string",
+          "description": "The concise summary of target learners and contextual constraints.",
+          "required": true
+        },
+        {
+          "class_name": "Parameter",
+          "name": "learning_objectives",
+          "type": "string",
+          "description": "The numbered list of SMART learning objectives.",
+          "required": true
+        }
+      ],
+      "outputs": [
+        {
+          "class_name": "Parameter",
+          "name": "concept_sequence",
+          "type": "string",
+          "description": "A structured outline listing topics in teaching order (e.g., '1. Introduction to Sequential Decision Making → 2. Markov Decision Processes (MDPs) → ...'), each annotated with linked objective(s), key definitions, and suggested time allocation (e.g., '45 min lecture + 30 min guided analysis').",
+          "required": true
+        }
+      ],
+      "reason": "Ensures conceptual scaffolding — foundational ideas (e.g., MDPs) precede algorithmic ones (e.g., policy gradients) — and supports coherent lesson planning and resource allocation.",
+      "agents": [
+        {
+          "name": "rl_curriculum_architect",
+          "description": "This agent designs the foundational conceptual backbone of the RL course by ordering topics according to logical dependency, aligning each with specific learning objectives, and assigning context-aware time allocations based on learner profile constraints.",
+          "inputs": [
+            {
+              "name": "goal",
+              "type": "string",
+              "description": "The user's goal in textual format.",
+              "required": true
+            },
+            {
+              "name": "learner_profile",
+              "type": "string",
+              "description": "The concise summary of target learners and contextual constraints.",
+              "required": true
+            },
+            {
+              "name": "learning_objectives",
+              "type": "string",
+              "description": "The numbered list of SMART learning objectives.",
+              "required": true
+            }
+          ],
+          "outputs": [
+            {
+              "name": "concept_sequence",
+              "type": "string",
+              "description": "A structured outline listing topics in teaching order (e.g., '1. Introduction to Sequential Decision Making → 2. Markov Decision Processes (MDPs) → ...'), each annotated with linked objective(s), key definitions, and suggested time allocation (e.g., '45 min lecture + 30 min guided analysis').",
+              "required": true
+            }
+          ],
+          "prompt": "### Objective\nDesign a logically sequenced, dependency-aware curriculum outline for a reinforcement learning course, where each core concept is mapped to relevant learning objectives and assigned realistic instructional time based on learner constraints.\n\n### Instructions\n1. Analyze the user's goal: <input>{goal}</input>\n2. Review the learner profile: <input>{learner_profile}</input> — pay special attention to prerequisites (e.g., Python, linear algebra, probability), course format (e.g., lecture/lab split), and constraints (e.g., no GPU, limited time per session).\n3. Parse the SMART learning objectives: <input>{learning_objectives}</input> — identify cognitive levels (e.g., 'define', 'formulate', 'implement', 'evaluate') and their dependencies.\n4. Construct a concept sequence starting from foundational abstractions (e.g., sequential decision making, reward hypothesis) and progressing strictly through prerequisite dependencies: e.g., MDPs before dynamic programming; value-based methods before policy gradients; tabular methods before deep RL.\n5. For each concept, explicitly link it to one or more learning objectives (e.g., 'Markov Decision Processes' → objectives #1 and #2; 'Q-Learning' → objective #4).\n6. Annotate each concept with: (a) a concise key definition or core idea, (b) rationale for its position in the sequence, and (c) time allocation (e.g., '45 min lecture + 30 min guided analysis') calibrated to learner profile constraints — e.g., allocate extra time to probabilistic modeling if learners lack background, or reduce deep RL time if no GPU access is available.\n7. Format the final output as a clean, numbered, hierarchical outline using '→' for sequencing, with each item containing all three annotations.\n\n### Output Format\nYour final output should ALWAYS in the following format:\n\n## Thought\nBriefly explain the reasoning process for achieving the objective.\n\n## concept_sequence\nA structured outline listing topics in teaching order (e.g., '1. Introduction to Sequential Decision Making → 2. Markov Decision Processes (MDPs) → ...'), each annotated with linked objective(s), key definitions, and suggested time allocation (e.g., '45 min lecture + 30 min guided analysis')."
+        }
+      ],
+      "status": "pending"
+    },
+    {
+      "class_name": "WorkFlowNode",
+      "name": "case_demonstrations_design",
+      "description": "Design 3–4 concrete, classroom-ready demonstration cases — each with problem context, step-by-step walkthrough, visualizable behavior (e.g., agent trajectory), instructor talking points, and common misconceptions addressed.",
+      "inputs": [
+        {
+          "class_name": "Parameter",
+          "name": "goal",
+          "type": "string",
+          "description": "The user's goal in textual format.",
+          "required": true
+        },
+        {
+          "class_name": "Parameter",
+          "name": "learner_profile",
+          "type": "string",
+          "description": "The concise summary of target learners and contextual constraints.",
+          "required": true
+        },
+        {
+          "class_name": "Parameter",
+          "name": "learning_objectives",
+          "type": "string",
+          "description": "The numbered list of SMART learning objectives.",
+          "required": true
+        },
+        {
+          "class_name": "Parameter",
+          "name": "concept_sequence",
+          "type": "string",
+          "description": "The structured outline listing topics in teaching order with linked objectives and time estimates.",
+          "required": true
+        }
+      ],
+      "outputs": [
+        {
+          "class_name": "Parameter",
+          "name": "demonstration_cases",
+          "type": "string",
+          "description": "A set of 3–4 fully specified case descriptions, each containing: (a) Context & Motivation, (b) Step-by-Step Pedagogical Walkthrough, (c) Visualization Guidance (e.g., 'plot value heatmap after 100 episodes'), (d) Instructor Notes (e.g., 'Emphasize why epsilon-greedy fails here without decay'), and (e) Misconception Alerts (e.g., 'Students often conflate reward shaping with changing the task objective').",
+          "required": true
+        }
+      ],
+      "reason": "Demonstrations bridge theory and intuition; well-chosen cases (e.g., FrozenLake for tabular RL, CartPole for function approximation) make abstract concepts tangible and memorable.",
+      "agents": [
+        {
+          "name": "rl_demonstration_designer",
+          "description": "This agent designs pedagogically sound, context-aware RL demonstration cases by integrating learner constraints, learning objectives, and concept sequencing to ensure each case is teachable, illustrative, and misconception-informed.",
+          "inputs": [
+            {
+              "name": "goal",
+              "type": "string",
+              "description": "The user's goal in textual format.",
+              "required": true
+            },
+            {
+              "name": "learner_profile",
+              "type": "string",
+              "description": "The concise summary of target learners and contextual constraints.",
+              "required": true
+            },
+            {
+              "name": "learning_objectives",
+              "type": "string",
+              "description": "The numbered list of SMART learning objectives.",
+              "required": true
+            },
+            {
+              "name": "concept_sequence",
+              "type": "string",
+              "description": "The structured outline listing topics in teaching order with linked objectives and time estimates.",
+              "required": true
+            }
+          ],
+          "outputs": [
+            {
+              "name": "demonstration_cases",
+              "type": "string",
+              "description": "A set of 3–4 fully specified case descriptions, each containing: (a) Context & Motivation, (b) Step-by-Step Pedagogical Walkthrough, (c) Visualization Guidance, (d) Instructor Notes, and (e) Misconception Alerts.",
+              "required": true
+            }
+          ],
+          "prompt": "### Objective\nDesign 3–4 concrete, classroom-ready demonstration cases for reinforcement learning instruction, each fully specified with (a) Context & Motivation, (b) Step-by-Step Pedagogical Walkthrough, (c) Visualization Guidance, (d) Instructor Notes, and (e) Misconception Alerts — strictly aligned to the user's goal, learner profile, learning objectives, and concept sequence.\n\n### Instructions\n1. Analyze the user's goal: <input>{goal}</input>, to maintain fidelity to the overall educational intent.\n2. Review the learner profile: <input>{learner_profile}</input>, and constrain case complexity accordingly (e.g., avoid GPU-heavy or mathematically advanced environments if learners lack prerequisites or resources).\n3. Map each demonstration case to at least one specific learning objective from: <input>{learning_objectives}</input>. Ensure coverage across Bloom's levels (e.g., one case for 'formulate', one for 'implement', one for 'evaluate').\n4. Sequence the cases to follow the logical flow and dependencies in the concept sequence: <input>{concept_sequence}</input>. Each case must build only on concepts already introduced earlier in the sequence.\n5. For each of the 3–4 cases, generate:\n   a. Context & Motivation: Real-world or intuitive analogy (e.g., 'robot navigation in a grid'), why it matters, and why it's suitable for this audience.\n   b. Step-by-Step Pedagogical Walkthrough: Clear, incremental explanation — e.g., 'Step 1: Define states as grid coordinates; Step 2: Define actions as {N,S,E,W}; Step 3: Assign sparse reward (+10 at goal, -1 per step)...'.\n   c. Visualization Guidance: Plain-language instructions for plots or animations (e.g., 'Plot agent trajectory over 50 episodes using arrows on grid'; 'Show value heatmap after policy iteration converges').\n   d. Instructor Notes: Concrete talking points, emphasis cues, and delivery tips (e.g., 'Pause here to ask: \"What happens if we increase gamma? Let students predict before simulating\"').\n   e. Misconception Alerts: One or two evidence-informed pitfalls (e.g., 'Students often think optimal policy = shortest path — clarify that it maximizes *discounted cumulative reward*, not distance').\n6. Format all 3–4 cases as a single cohesive string, clearly labeled and separated, using the exact structure described above.\n\n### Output Format\nYour final output should ALWAYS in the following format:\n\n## Thought\nBriefly explain the reasoning process for achieving the objective.\n\n## demonstration_cases\nA set of 3–4 fully specified case descriptions, each containing: (a) Context & Motivation, (b) Step-by-Step Pedagogical Walkthrough, (c) Visualization Guidance, (d) Instructor Notes, and (e) Misconception Alerts."
+        }
+      ],
+      "status": "pending"
+    },
+    {
+      "class_name": "WorkFlowNode",
+      "name": "practice_exercises_design",
+      "description": "Create a tiered set of practice exercises (conceptual, coding, and open-ended) aligned to learning objectives and concept sequence, including solution sketches and difficulty indicators.",
+      "inputs": [
+        {
+          "class_name": "Parameter",
+          "name": "goal",
+          "type": "string",
+          "description": "The user's goal in textual format.",
+          "required": true
+        },
+        {
+          "class_name": "Parameter",
+          "name": "learning_objectives",
+          "type": "string",
+          "description": "The numbered list of SMART learning objectives.",
+          "required": true
+        },
+        {
+          "class_name": "Parameter",
+          "name": "concept_sequence",
+          "type": "string",
+          "description": "The structured outline listing topics in teaching order with linked objectives and time estimates.",
+          "required": true
+        },
+        {
+          "class_name": "Parameter",
+          "name": "demonstration_cases",
+          "type": "string",
+          "description": "The set of 3–4 fully specified case descriptions.",
+          "required": true
+        }
+      ],
+      "outputs": [
+        {
+          "class_name": "Parameter",
+          "name": "exercise_set",
+          "type": "string",
+          "description": "A categorized list of exercises: (i) Conceptual (e.g., multiple-choice, short-answer), (ii) Coding (e.g., 'Complete the missing lines in this SARSA update loop'), and (iii) Open-ended (e.g., 'Propose and justify a policy improvement strategy for this noisy environment'). Each includes: prompt, targeted objective, estimated completion time, and concise solution sketch/answer key.",
+          "required": true
+        }
+      ],
+      "reason": "Exercises reinforce learning, diagnose gaps, and build confidence; tiering (e.g., 'Level 1: Trace Q-table updates' → 'Level 3: Design a reward function for a custom robot navigation task') supports differentiated instruction.",
+      "agents": [
+        {
+          "name": "exercise_design_agent",
+          "description": "This agent designs a balanced, tiered set of RL practice exercises (conceptual, coding, open-ended) that are rigorously aligned to learning objectives, sequenced by concept dependencies, grounded in demonstration cases, and annotated with difficulty, time, and solution sketches.",
+          "inputs": [
+            {
+              "name": "goal",
+              "type": "string",
+              "description": "The user's goal in textual format.",
+              "required": true
+            },
+            {
+              "name": "learning_objectives",
+              "type": "string",
+              "description": "The numbered list of SMART learning objectives.",
+              "required": true
+            },
+            {
+              "name": "concept_sequence",
+              "type": "string",
+              "description": "The structured outline listing topics in teaching order with linked objectives and time estimates.",
+              "required": true
+            },
+            {
+              "name": "demonstration_cases",
+              "type": "string",
+              "description": "The set of 3–4 fully specified case descriptions.",
+              "required": true
+            }
+          ],
+          "outputs": [
+            {
+              "name": "exercise_set",
+              "type": "string",
+              "description": "A categorized list of exercises: (i) Conceptual, (ii) Coding, and (iii) Open-ended. Each includes: prompt, targeted objective, estimated completion time, and concise solution sketch/answer key.",
+              "required": true
+            }
+          ],
+          "prompt": "### Objective\nDesign a tiered, classroom-ready set of reinforcement learning practice exercises — categorized into conceptual, coding, and open-ended types — that are explicitly aligned to the provided learning objectives, sequenced according to the concept dependencies in the concept sequence, and grounded in the contexts and insights from the demonstration cases.\n\n### Instructions\n1. Carefully read the user's goal: <input>{goal}</input> to maintain fidelity to the overall educational intent.\n2. Parse the learning objectives: <input>{learning_objectives}</input>. For each exercise you create, explicitly cite the exact objective number and phrasing it targets (e.g., 'Objective 3: Given a real-world sequential decision problem, students will formulate it as an MDP...').\n3. Analyze the concept_sequence: <input>{concept_sequence}</input> to ensure exercises respect logical dependencies (e.g., no Q-learning exercises before MDPs or value iteration) and reflect realistic time allocations (e.g., '45 min lecture + 30 min guided analysis' suggests conceptual exercises should precede coding ones for that topic).\n4. Extract salient contexts, visualizations, instructor notes, and misconception alerts from the demonstration_cases: <input>{demonstration_cases}</input>. Use these to generate authentic, relatable prompts — e.g., reuse a robot navigation scenario for an open-ended reward design task, or convert a 'common misconception' into a conceptual multiple-choice question with distractors.\n5. Generate at least 3 conceptual, 3 coding, and 3 open-ended exercises. For each:\n   - Assign a difficulty tier: 'Level 1' (recall/comprehension), 'Level 2' (application/analysis), or 'Level 3' (synthesis/evaluation);\n   - Estimate realistic completion time (e.g., '3 min', '20 min', '60 min');\n   - Provide a concise, accurate solution sketch or answer key;\n   - Explicitly state which learning objective(s) it targets.\n6. Format the final output as a single coherent string under the heading 'exercise_set', organized into three clearly labeled sections: '(i) Conceptual Exercises', '(ii) Coding Exercises', '(iii) Open-ended Exercises'. Within each section, list exercises with all required annotations.\n\n### Output Format\nYour final output should ALWAYS in the following format:\n\n## Thought\nBriefly explain the reasoning process for achieving the objective.\n\n## exercise_set\nA categorized list of exercises: (i) Conceptual (e.g., multiple-choice, short-answer), (ii) Coding (e.g., 'Complete the missing lines in this SARSA update loop'), and (iii) Open-ended (e.g., 'Propose and justify a policy improvement strategy for this noisy environment'). Each includes: prompt, targeted objective, estimated completion time, and concise solution sketch/answer key."
+        }
+      ],
+      "status": "pending"
+    },
+    {
+      "class_name": "WorkFlowNode",
+      "name": "assessment_methods_specification",
+      "description": "Define a balanced, objective-aligned assessment strategy comprising formative (in-class polls, code review rubrics), summative (project specifications & grading rubrics), and reflective components (self-evaluation prompts).",
+      "inputs": [
+        {
+          "class_name": "Parameter",
+          "name": "goal",
+          "type": "string",
+          "description": "The user's goal in textual format.",
+          "required": true
+        },
+        {
+          "class_name": "Parameter",
+          "name": "learning_objectives",
+          "type": "string",
+          "description": "The numbered list of SMART learning objectives.",
+          "required": true
+        },
+        {
+          "class_name": "Parameter",
+          "name": "demonstration_cases",
+          "type": "string",
+          "description": "The set of 3–4 fully specified case descriptions.",
+          "required": true
+        },
+        {
+          "class_name": "Parameter",
+          "name": "exercise_set",
+          "type": "string",
+          "description": "The categorized list of exercises with prompts, targets, and solution sketches.",
+          "required": true
+        }
+      ],
+      "outputs": [
+        {
+          "class_name": "Parameter",
+          "name": "assessment_plan",
+          "type": "string",
+          "description": "A structured specification including: (a) Formative tools (e.g., '5-min exit ticket: Sketch the Bellman optimality equation for this MDP'), (b) Summative project (e.g., 'Build and evaluate a DQN agent on Breakout; rubric covers architecture choice, training stability, and ablation analysis'), and (c) Reflective component (e.g., 'One-paragraph reflection on how your understanding of exploration evolved across labs'). All explicitly mapped to learning objectives.",
+          "required": true
+        }
+      ],
+      "reason": "Assessment must validate achievement of stated objectives—not just recall—and provide actionable feedback; mapping each assessment type to specific objectives ensures validity and transparency.",
+      "agents": [
+        {
+          "name": "pedagogical_assessment_designer",
+          "description": "This agent designs a valid, transparent, and feasible assessment plan for a reinforcement learning course by rigorously aligning formative, summative, and reflective components to the stated learning objectives—and grounding each in concrete instructional artifacts (demonstration cases and exercises).",
+          "inputs": [
+            {
+              "name": "goal",
+              "type": "string",
+              "description": "The user's goal in textual format.",
+              "required": true
+            },
+            {
+              "name": "learning_objectives",
+              "type": "string",
+              "description": "The numbered list of SMART learning objectives.",
+              "required": true
+            },
+            {
+              "name": "demonstration_cases",
+              "type": "string",
+              "description": "The set of 3–4 fully specified case descriptions, each containing context, walkthrough, visualization guidance, instructor notes, and misconception alerts.",
+              "required": true
+            },
+            {
+              "name": "exercise_set",
+              "type": "string",
+              "description": "The categorized list of exercises (conceptual, coding, open-ended), each with prompt, targeted objective, estimated time, and solution sketch.",
+              "required": true
+            }
+          ],
+          "outputs": [
+            {
+              "name": "assessment_plan",
+              "type": "string",
+              "description": "A structured specification including: (a) Formative tools (e.g., '5-min exit ticket: Sketch the Bellman optimality equation for this MDP'), (b) Summative project (e.g., 'Build and evaluate a DQN agent on Breakout; rubric covers architecture choice, training stability, and ablation analysis'), and (c) Reflective component (e.g., 'One-paragraph reflection on how your understanding of exploration evolved across labs'). All explicitly mapped to learning objectives.",
+              "required": true
+            }
+          ],
+          "prompt": "### Objective\nDesign a balanced, objective-aligned assessment plan for a reinforcement learning course that includes formative tools, a summative project with grading rubric, and a reflective component—all explicitly mapped to the provided SMART learning objectives and grounded in the demonstration cases and practice exercises.\n\n### Instructions\n1. Analyze <input>{learning_objectives}</input> to identify the Bloom's level (e.g., remember, apply, analyze, evaluate) and cognitive demand of each objective.\n2. Review <input>{demonstration_cases}</input> to extract authentic contexts, common misconceptions, and observable behaviors that can serve as anchors for assessment items (e.g., if a case highlights 'epsilon-greedy decay failure', design a formative poll probing that nuance).\n3. Examine <input>{exercise_set}</input> to infer scaffolding needs: conceptual exercises suggest formative knowledge checks; coding exercises indicate required debugging/rubric criteria; open-ended exercises reveal summative project scope and reflection themes.\n4. Ensure formative tools (e.g., exit tickets, peer code reviews) target lower-to-mid Bloom's levels and map directly to early/mid objectives—prioritizing quick feedback and misconception correction.\n5. Design one summative project that integrates multiple high-level objectives (e.g., 'design, implement, and critically evaluate an RL agent') and specify a detailed, objective-aligned rubric with concrete criteria (e.g., 'Architecture choice (LO#3): 3 pts for justified selection of tabular vs. function approximator given constraints').\n6. Craft a reflective prompt that asks students to trace conceptual evolution across cases and exercises (e.g., linking exploration strategies from Case #1 to their solution in Exercise #3b).\n7. Explicitly annotate every assessment component with its linked learning objective number(s) (e.g., '[LO#2, LO#4]').\n8. Ensure feasibility under the course constraints implied by <input>{goal}</input> (e.g., avoid GPU-dependent projects if goal mentions 'no cloud compute').\n9. Output only the final structured assessment plan in the required format.\n\n### Output Format\nYour final output should ALWAYS in the following format:\n\n## Thought\nBriefly explain the reasoning process for achieving the objective.\n\n## assessment_plan\nA structured specification including: (a) Formative tools (e.g., '5-min exit ticket: Sketch the Bellman optimality equation for this MDP'), (b) Summative project (e.g., 'Build and evaluate a DQN agent on Breakout; rubric covers architecture choice, training stability, and ablation analysis'), and (c) Reflective component (e.g., 'One-paragraph reflection on how your understanding of exploration evolved across labs'). All explicitly mapped to learning objectives."
+        }
+      ],
+      "status": "pending"
+    }
+  ],
+  "edges": [
+    {
+      "class_name": "WorkFlowEdge",
+      "source": "audience_and_context_analysis",
+      "target": "learning_objectives_definition",
+      "priority": 0
+    },
+    {
+      "class_name": "WorkFlowEdge",
+      "source": "audience_and_context_analysis",
+      "target": "core_concepts_structuring",
+      "priority": 0
+    },
+    {
+      "class_name": "WorkFlowEdge",
+      "source": "audience_and_context_analysis",
+      "target": "case_demonstrations_design",
+      "priority": 0
+    },
+    {
+      "class_name": "WorkFlowEdge",
+      "source": "learning_objectives_definition",
+      "target": "core_concepts_structuring",
+      "priority": 0
+    },
+    {
+      "class_name": "WorkFlowEdge",
+      "source": "learning_objectives_definition",
+      "target": "case_demonstrations_design",
+      "priority": 0
+    },
+    {
+      "class_name": "WorkFlowEdge",
+      "source": "learning_objectives_definition",
+      "target": "practice_exercises_design",
+      "priority": 0
+    },
+    {
+      "class_name": "WorkFlowEdge",
+      "source": "learning_objectives_definition",
+      "target": "assessment_methods_specification",
+      "priority": 0
+    },
+    {
+      "class_name": "WorkFlowEdge",
+      "source": "core_concepts_structuring",
+      "target": "case_demonstrations_design",
+      "priority": 0
+    },
+    {
+      "class_name": "WorkFlowEdge",
+      "source": "core_concepts_structuring",
+      "target": "practice_exercises_design",
+      "priority": 0
+    },
+    {
+      "class_name": "WorkFlowEdge",
+      "source": "case_demonstrations_design",
+      "target": "practice_exercises_design",
+      "priority": 0
+    },
+    {
+      "class_name": "WorkFlowEdge",
+      "source": "case_demonstrations_design",
+      "target": "assessment_methods_specification",
+      "priority": 0
+    },
+    {
+      "class_name": "WorkFlowEdge",
+      "source": "practice_exercises_design",
+      "target": "assessment_methods_specification",
+      "priority": 0
+    }
+  ],
+  "_metadata": {
+    "generated_at": "2026-03-05T21:25:21.121612",
+    "source_search_result": "custom_goal",
+    "goal_summary": "强化学习教案设计与评估工作流：设计一个完整的强化学习教育教学方案，包括教学目标、知识点讲解、案例演示、练习设计、评估方法等"
+  }
+}

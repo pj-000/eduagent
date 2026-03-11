@@ -12,7 +12,11 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-from dotenv import load_dotenv
+try:
+    from dotenv import load_dotenv
+except ImportError:  # pragma: no cover - optional dependency for local env loading
+    def load_dotenv(*_args, **_kwargs):
+        return False
 from pydantic import BaseModel, Field, ValidationError, field_validator
 
 

@@ -14,7 +14,7 @@ import sys
 import json
 import argparse
 import re
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -59,6 +59,7 @@ COMMUNITY_DOMAINS = ("reddit.com", "news.ycombinator.com", "zhihu.com", "v2ex.co
 GITHUB_DOMAINS = ("github.com",)
 PRODUCT_DOMAINS = ("producthunt.com", "openai.com", "anthropic.com", "notion.so")
 OFFICIAL_DOMAINS = ("edu.cn", ".edu", "gov", "ac.uk")
+GOOGLE_ERROR_MARKERS = ("429", "too many requests", "read timed out", "timed out", "sorry/index")
 
 
 @dataclass
@@ -69,6 +70,70 @@ class SearchTheme:
     description: str
     zh_queries: list[str]
     en_queries: list[str]
+
+
+@dataclass
+class SearchSourceRuntime:
+    enabled: bool = True
+    failures: int = 0
+    messages: list[str] = field(default_factory=list)
+
+
+@dataclass(frozen=True)
+class SearchExecutionPolicy:
+    name: str
+    theme_limit: int | None
+    ddgs_pages_en: int
+    ddgs_pages_zh: int
+    ddgs_pages_extra: int
+    ddgs_words: int
+    google_enabled: bool
+    google_extra_enabled: bool
+    google_queries_per_theme: int | None
+    google_failure_threshold: int
+    rss_enabled: bool
+    rss_entries: int
+    wiki_enabled: bool
+    arxiv_enabled: bool
+    extra_queries_per_theme: int | None
+
+
+SEARCH_EXECUTION_POLICIES = {
+    "quick": SearchExecutionPolicy(
+        name="quick",
+        theme_limit=3,
+        ddgs_pages_en=2,
+        ddgs_pages_zh=2,
+        ddgs_pages_extra=1,
+        ddgs_words=90,
+        google_enabled=False,
+        google_extra_enabled=False,
+        google_queries_per_theme=0,
+        google_failure_threshold=1,
+        rss_enabled=True,
+        rss_entries=2,
+        wiki_enabled=False,
+        arxiv_enabled=True,
+        extra_queries_per_theme=4,
+    ),
+    "research": SearchExecutionPolicy(
+        name="research",
+        theme_limit=6,
+        ddgs_pages_en=4,
+        ddgs_pages_zh=3,
+        ddgs_pages_extra=2,
+        ddgs_words=120,
+        google_enabled=False,
+        google_extra_enabled=False,
+        google_queries_per_theme=2,
+        google_failure_threshold=2,
+        rss_enabled=True,
+        rss_entries=4,
+        wiki_enabled=True,
+        arxiv_enabled=True,
+        extra_queries_per_theme=12,
+    ),
+}
 
 
 SEARCH_THEME_LIBRARY: dict[str, SearchTheme] = {
@@ -445,6 +510,64 @@ def dedupe_themes(themes: list[SearchTheme]) -> list[SearchTheme]:
     return deduped
 
 
+def get_search_policy(search_mode: str) -> SearchExecutionPolicy:
+    return SEARCH_EXECUTION_POLICIES.get(search_mode, SEARCH_EXECUTION_POLICIES["research"])
+
+
+def prioritize_task_theme(themes: list[SearchTheme], task_text: str | None) -> list[SearchTheme]:
+    if not task_text:
+        return dedupe_themes(themes)
+    prioritized = [
+        build_custom_theme(
+            task_text,
+            key_prefix="task-priority",
+            description="围绕当前任务做优先检索，确保研究模式先覆盖用户真实主题。",
+        )
+    ]
+    prioritized.extend(themes)
+    return dedupe_themes(prioritized)
+
+
+def limit_themes(themes: list[SearchTheme], limit: int | None) -> list[SearchTheme]:
+    if limit is None or limit <= 0:
+        return themes
+    return themes[:limit]
+
+
+def _source_error_message(exc: Exception) -> str:
+    return normalize_text(str(exc), max_chars=180) or exc.__class__.__name__
+
+
+def _should_disable_source(source_name: str, runtime: SearchSourceRuntime, policy: SearchExecutionPolicy) -> bool:
+    if source_name != "google":
+        return False
+    if runtime.failures >= policy.google_failure_threshold:
+        return True
+    lowered = " ".join(runtime.messages).lower()
+    return any(marker in lowered for marker in GOOGLE_ERROR_MARKERS)
+
+
+def _run_tool_call(
+    *,
+    tool,
+    kwargs: dict[str, Any],
+    source_name: str,
+    runtime: SearchSourceRuntime,
+    policy: SearchExecutionPolicy,
+) -> dict[str, Any]:
+    if not runtime.enabled:
+        return {}
+    try:
+        result = tool(**kwargs)
+    except Exception as exc:
+        runtime.failures += 1
+        runtime.messages.append(_source_error_message(exc))
+        if _should_disable_source(source_name, runtime, policy):
+            runtime.enabled = False
+        return {}
+    return result if isinstance(result, dict) else {}
+
+
 def extract_json_payload(text: str) -> Any:
     candidate = (text or "").strip()
     fenced_match = re.search(r"```json\s*(.*?)\s*```", candidate, re.S)
@@ -638,28 +761,41 @@ def collect_tool_outputs(
     focus: str,
     custom_themes: list[str] | None = None,
     dynamic_themes: list[SearchTheme] | None = None,
+    search_mode: str = "research",
 ) -> tuple[list[dict[str, Any]], dict[str, Any]]:
-    arxiv_tool = ArxivToolkit().get_tool("arxiv_search")
+    policy = get_search_policy(search_mode)
+    arxiv_tool = ArxivToolkit().get_tool("arxiv_search") if policy.arxiv_enabled else None
     ddgs_tool = DDGSSearchToolkit(
-        num_search_pages=4,
-        max_content_words=120,
+        num_search_pages=max(policy.ddgs_pages_en, policy.ddgs_pages_zh, policy.ddgs_pages_extra),
+        max_content_words=policy.ddgs_words,
         backend="auto",
         region="wt-wt",
     ).get_tool("ddgs_search")
-    google_tool = GoogleFreeSearchToolkit(
-        num_search_pages=3,
-        max_content_words=120,
-    ).get_tool("google_free_search")
-    wiki_tool = WikipediaSearchToolkit(
-        num_search_pages=2,
-        max_content_words=80,
-        max_summary_sentences=3,
-    ).get_tool("wikipedia_search")
-    rss_tool = RSSToolkit().get_tool("rss_fetch")
+    google_tool = None
+    if policy.google_enabled:
+        google_tool = GoogleFreeSearchToolkit(
+            num_search_pages=3,
+            max_content_words=policy.ddgs_words,
+        ).get_tool("google_free_search")
+    wiki_tool = None
+    if policy.wiki_enabled:
+        wiki_tool = WikipediaSearchToolkit(
+            num_search_pages=2,
+            max_content_words=80,
+            max_summary_sentences=3,
+        ).get_tool("wikipedia_search")
+    rss_tool = RSSToolkit().get_tool("rss_fetch") if policy.rss_enabled else None
 
     evidence_items: list[dict[str, Any]] = []
     source_counts = {"ddgs": 0, "google": 0, "rss": 0, "wikipedia": 0, "arxiv": 0}
     source_bucket_counts: dict[str, int] = {}
+    source_status = {
+        "ddgs": SearchSourceRuntime(),
+        "google": SearchSourceRuntime(enabled=policy.google_enabled),
+        "rss": SearchSourceRuntime(enabled=policy.rss_enabled),
+        "wikipedia": SearchSourceRuntime(enabled=policy.wiki_enabled),
+        "arxiv": SearchSourceRuntime(enabled=policy.arxiv_enabled),
+    }
     theme_usage = []
     themes, coverage_mode = resolve_themes(
         focus,
@@ -667,6 +803,9 @@ def collect_tool_outputs(
         custom_themes=custom_themes,
         dynamic_themes=dynamic_themes,
     )
+    task_text = extract_user_task(explore_hint) or explore_hint
+    themes = prioritize_task_theme(themes, task_text)
+    themes = limit_themes(themes, policy.theme_limit)
 
     for theme in themes:
         theme_usage.append(
@@ -678,79 +817,128 @@ def collect_tool_outputs(
             }
         )
 
-        for query in theme.en_queries:
-            ddgs_results = ddgs_tool(
-                query=query,
-                num_search_pages=4,
-                max_content_words=120,
-                backend="auto",
-                region="wt-wt",
+        for index, query in enumerate(theme.en_queries):
+            ddgs_results = _run_tool_call(
+                tool=ddgs_tool,
+                kwargs={
+                    "query": query,
+                    "num_search_pages": policy.ddgs_pages_en,
+                    "max_content_words": policy.ddgs_words,
+                    "backend": "auto",
+                    "region": "wt-wt",
+                },
+                source_name="ddgs",
+                runtime=source_status["ddgs"],
+                policy=policy,
             )
             evidence_items.extend(
                 normalize_search_results(ddgs_results.get("results", []), theme, "ddgs", query, "en")
             )
             source_counts["ddgs"] += len(ddgs_results.get("results", []))
 
-            google_results = google_tool(
-                query=query,
-                num_search_pages=3,
-                max_content_words=120,
-            )
-            evidence_items.extend(
-                normalize_search_results(google_results.get("results", []), theme, "google", query, "en")
-            )
-            source_counts["google"] += len(google_results.get("results", []))
+            if google_tool and index < (policy.google_queries_per_theme or 0):
+                google_results = _run_tool_call(
+                    tool=google_tool,
+                    kwargs={
+                        "query": query,
+                        "num_search_pages": 3,
+                        "max_content_words": policy.ddgs_words,
+                    },
+                    source_name="google",
+                    runtime=source_status["google"],
+                    policy=policy,
+                )
+                evidence_items.extend(
+                    normalize_search_results(google_results.get("results", []), theme, "google", query, "en")
+                )
+                source_counts["google"] += len(google_results.get("results", []))
 
-            rss_results = rss_tool(
-                feed_url=build_google_news_rss_url(query, "en"),
-                max_entries=4,
-                fetch_webpage_content=False,
-            )
-            evidence_items.extend(
-                normalize_rss_results(rss_results.get("entries", []), theme, query, "en")
-            )
-            source_counts["rss"] += len(rss_results.get("entries", []))
+            if rss_tool:
+                rss_results = _run_tool_call(
+                    tool=rss_tool,
+                    kwargs={
+                        "feed_url": build_google_news_rss_url(query, "en"),
+                        "max_entries": policy.rss_entries,
+                        "fetch_webpage_content": False,
+                    },
+                    source_name="rss",
+                    runtime=source_status["rss"],
+                    policy=policy,
+                )
+                evidence_items.extend(
+                    normalize_rss_results(rss_results.get("entries", []), theme, query, "en")
+                )
+                source_counts["rss"] += len(rss_results.get("entries", []))
 
-        for zh_query in theme.zh_queries:
-            ddgs_results = ddgs_tool(
-                query=zh_query,
-                num_search_pages=3,
-                max_content_words=120,
-                backend="auto",
-                region="wt-wt",
+        for index, zh_query in enumerate(theme.zh_queries):
+            ddgs_results = _run_tool_call(
+                tool=ddgs_tool,
+                kwargs={
+                    "query": zh_query,
+                    "num_search_pages": policy.ddgs_pages_zh,
+                    "max_content_words": policy.ddgs_words,
+                    "backend": "auto",
+                    "region": "wt-wt",
+                },
+                source_name="ddgs",
+                runtime=source_status["ddgs"],
+                policy=policy,
             )
             evidence_items.extend(
                 normalize_search_results(ddgs_results.get("results", []), theme, "ddgs", zh_query, "zh")
             )
             source_counts["ddgs"] += len(ddgs_results.get("results", []))
 
-            google_results = google_tool(
-                query=zh_query,
-                num_search_pages=3,
-                max_content_words=120,
-            )
-            evidence_items.extend(
-                normalize_search_results(google_results.get("results", []), theme, "google", zh_query, "zh")
-            )
-            source_counts["google"] += len(google_results.get("results", []))
+            if google_tool and index < (policy.google_queries_per_theme or 0):
+                google_results = _run_tool_call(
+                    tool=google_tool,
+                    kwargs={
+                        "query": zh_query,
+                        "num_search_pages": 3,
+                        "max_content_words": policy.ddgs_words,
+                    },
+                    source_name="google",
+                    runtime=source_status["google"],
+                    policy=policy,
+                )
+                evidence_items.extend(
+                    normalize_search_results(google_results.get("results", []), theme, "google", zh_query, "zh")
+                )
+                source_counts["google"] += len(google_results.get("results", []))
 
-            rss_results = rss_tool(
-                feed_url=build_google_news_rss_url(zh_query, "zh"),
-                max_entries=4,
-                fetch_webpage_content=False,
-            )
-            evidence_items.extend(
-                normalize_rss_results(rss_results.get("entries", []), theme, zh_query, "zh")
-            )
-            source_counts["rss"] += len(rss_results.get("entries", []))
+            if rss_tool:
+                rss_results = _run_tool_call(
+                    tool=rss_tool,
+                    kwargs={
+                        "feed_url": build_google_news_rss_url(zh_query, "zh"),
+                        "max_entries": policy.rss_entries,
+                        "fetch_webpage_content": False,
+                    },
+                    source_name="rss",
+                    runtime=source_status["rss"],
+                    policy=policy,
+                )
+                evidence_items.extend(
+                    normalize_rss_results(rss_results.get("entries", []), theme, zh_query, "zh")
+                )
+                source_counts["rss"] += len(rss_results.get("entries", []))
 
-        for spec in build_extra_query_specs(theme):
-            ddgs_results = ddgs_tool(
-                query=spec["query"],
-                num_search_pages=EXTRA_QUERY_PAGES,
-                max_content_words=100,
-                backend="auto",
-                region="wt-wt",
+        extra_specs = build_extra_query_specs(theme)
+        if policy.extra_queries_per_theme is not None:
+            extra_specs = extra_specs[: policy.extra_queries_per_theme]
+        for spec in extra_specs:
+            ddgs_results = _run_tool_call(
+                tool=ddgs_tool,
+                kwargs={
+                    "query": spec["query"],
+                    "num_search_pages": policy.ddgs_pages_extra,
+                    "max_content_words": 100,
+                    "backend": "auto",
+                    "region": "wt-wt",
+                },
+                source_name="ddgs",
+                runtime=source_status["ddgs"],
+                policy=policy,
             )
             ddgs_items = normalize_search_results(
                 ddgs_results.get("results", []),
@@ -763,11 +951,17 @@ def collect_tool_outputs(
             evidence_items.extend(ddgs_items)
             source_counts["ddgs"] += len(ddgs_results.get("results", []))
 
-            if spec["bucket"] in {"blog", "product", "official"}:
-                google_results = google_tool(
-                    query=spec["query"],
-                    num_search_pages=EXTRA_QUERY_PAGES,
-                    max_content_words=100,
+            if google_tool and policy.google_extra_enabled and spec["bucket"] in {"blog", "product", "official"}:
+                google_results = _run_tool_call(
+                    tool=google_tool,
+                    kwargs={
+                        "query": spec["query"],
+                        "num_search_pages": policy.ddgs_pages_extra,
+                        "max_content_words": 100,
+                    },
+                    source_name="google",
+                    runtime=source_status["google"],
+                    policy=policy,
                 )
                 google_items = normalize_search_results(
                     google_results.get("results", []),
@@ -780,24 +974,36 @@ def collect_tool_outputs(
                 evidence_items.extend(google_items)
                 source_counts["google"] += len(google_results.get("results", []))
 
-        wiki_results = wiki_tool(
-            query=theme.label_en,
-            num_search_pages=2,
-            max_content_words=80,
-            max_summary_sentences=3,
-        )
-        evidence_items.extend(
-            normalize_wiki_results(wiki_results.get("results", []), theme)
-        )
-        source_counts["wikipedia"] += len(wiki_results.get("results", []))
+        if wiki_tool:
+            wiki_results = _run_tool_call(
+                tool=wiki_tool,
+                kwargs={
+                    "query": theme.label_en,
+                    "num_search_pages": 2,
+                    "max_content_words": 80,
+                    "max_summary_sentences": 3,
+                },
+                source_name="wikipedia",
+                runtime=source_status["wikipedia"],
+                policy=policy,
+            )
+            evidence_items.extend(normalize_wiki_results(wiki_results.get("results", []), theme))
+            source_counts["wikipedia"] += len(wiki_results.get("results", []))
 
-        arxiv_results = arxiv_tool(
-            search_query=build_arxiv_query(theme),
-            max_results=3,
-            start=0,
-        )
-        evidence_items.extend(normalize_arxiv_results(arxiv_results.get("papers", []), theme))
-        source_counts["arxiv"] += len(arxiv_results.get("papers", []))
+        if arxiv_tool:
+            arxiv_results = _run_tool_call(
+                tool=arxiv_tool,
+                kwargs={
+                    "search_query": build_arxiv_query(theme),
+                    "max_results": 3,
+                    "start": 0,
+                },
+                source_name="arxiv",
+                runtime=source_status["arxiv"],
+                policy=policy,
+            )
+            evidence_items.extend(normalize_arxiv_results(arxiv_results.get("papers", []), theme))
+            source_counts["arxiv"] += len(arxiv_results.get("papers", []))
 
     for item in evidence_items:
         bucket = item.get("source_bucket") or infer_source_bucket(item.get("url", ""), "web")
@@ -805,11 +1011,20 @@ def collect_tool_outputs(
 
     coverage_summary = {
         "focus": focus,
+        "search_mode": policy.name,
         "coverage_mode": coverage_mode,
         "custom_themes": custom_themes or [],
         "themes": theme_usage,
         "source_counts": source_counts,
         "source_bucket_counts": source_bucket_counts,
+        "source_status": {
+            name: {
+                "enabled": runtime.enabled,
+                "failures": runtime.failures,
+                "messages": runtime.messages[-3:],
+            }
+            for name, runtime in source_status.items()
+        },
     }
     return evidence_items, coverage_summary
 
@@ -1024,6 +1239,7 @@ def compute_freshness_score(item: dict[str, Any]) -> int:
 def build_structured_brief(selected_evidence: list[dict[str, Any]], coverage_summary: dict[str, Any]) -> str:
     lines = [
         f"检索策略：{coverage_summary.get('coverage_mode', 'task-plus-preset')}",
+        f"执行模式：{coverage_summary.get('search_mode', 'research')}",
         f"覆盖主题数：{len(coverage_summary['themes'])}",
         "主题覆盖：",
     ]
@@ -1038,6 +1254,15 @@ def build_structured_brief(selected_evidence: list[dict[str, Any]], coverage_sum
         lines.append("来源类型覆盖：")
         for bucket, count in coverage_summary["source_bucket_counts"].items():
             lines.append(f"- {bucket}: {count}")
+    if coverage_summary.get("source_status"):
+        lines.append("来源运行状态：")
+        for source_name, status in coverage_summary["source_status"].items():
+            suffix = ""
+            if status.get("messages"):
+                suffix = f" | 最近错误: {'; '.join(status['messages'])}"
+            lines.append(
+                f"- {source_name}: enabled={status.get('enabled')} failures={status.get('failures', 0)}{suffix}"
+            )
     lines.append("")
     lines.append("候选证据：")
     for idx, item in enumerate(selected_evidence, 1):
@@ -1082,7 +1307,7 @@ def generate_explore_report(
 - 覆盖主题：（列出实际覆盖的主题）
 - 搜索范围：（说明中英文、多源、新闻/RSS/网页/博客/社区/GitHub/论文覆盖情况）
 - 时效策略：（说明为什么这些资料相对较新）
-- 使用工具：（列出 DDGS、Google、RSS、Wikipedia 的使用情况）
+- 使用工具：（列出 DDGS、Google、RSS、Wikipedia、arXiv 的使用情况）
 
 ## 创新功能点清单
 
@@ -1192,6 +1417,7 @@ def run_search(
     explore_hint: str,
     focus: str = "all",
     custom_themes: list[str] | None = None,
+    search_mode: str = "research",
     save: bool = True,
     llm_config: AliyunLLMConfig | None = None,
     verbose: bool = True,
@@ -1206,6 +1432,7 @@ def run_search(
     if verbose:
         print("🚀 教育创新功能自主探索 Agent 启动")
         print(f"📐 搜索 focus：{focus}")
+        print(f"🧪 执行模式：{search_mode}")
         if custom_themes:
             print(f"🎯 用户显式主题：{', '.join(custom_themes)}")
         elif dynamic_themes:
@@ -1218,6 +1445,7 @@ def run_search(
         focus=focus,
         custom_themes=custom_themes,
         dynamic_themes=dynamic_themes,
+        search_mode=search_mode,
     )
     selected_evidence = deduplicate_and_rank(raw_evidence)
     result = generate_explore_report(
@@ -1240,6 +1468,7 @@ def run_search(
 
     return {
         "focus": focus,
+        "search_mode": search_mode,
         "custom_themes": custom_themes or [],
         "explore_hint": explore_hint,
         "coverage_summary": coverage_summary,
@@ -1272,6 +1501,10 @@ def main():
   python scripts/search_edu.py --theme "XR课堂" --theme "特殊教育辅助技术"
   python scripts/search_edu.py --hint "探索 AI Agent 在教育领域的最新应用" --theme "教师 copilot"
 
+  # 指定执行模式
+  python scripts/search_edu.py --focus free --search-mode research
+  python scripts/search_edu.py --focus adaptive --search-mode quick
+
   # 不保存结果（仅终端输出）
   python scripts/search_edu.py --no-save
         """,
@@ -1297,6 +1530,12 @@ def main():
         help="显式指定搜索主题，可重复传入；传入后将优先围绕这些主题检索",
     )
     parser.add_argument(
+        "--search-mode",
+        choices=sorted(SEARCH_EXECUTION_POLICIES.keys()),
+        default="research",
+        help="搜索执行模式：research(重型研究，默认) / quick(快速轻量)",
+    )
+    parser.add_argument(
         "--no-save", action="store_true", help="不保存结果（默认会自动保存到 data/search_results/）"
     )
     args = parser.parse_args()
@@ -1307,6 +1546,7 @@ def main():
         explore_hint=explore_hint,
         focus=args.focus,
         custom_themes=args.themes,
+        search_mode=args.search_mode,
         save=not args.no_save,
         llm_config=build_llm_config(),
         verbose=True,

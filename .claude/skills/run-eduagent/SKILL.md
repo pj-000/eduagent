@@ -20,40 +20,20 @@ Those should go to `generate-ppt` instead.
 ## Default path
 
 1. Work inside the `eduagent/` project root.
-2. If the request is specifically about lesson plans / teaching design, switch to:
+2. `run_planner.py` is the only default decision layer. Use this top-level entrypoint first:
 
 ```bash
-python scripts/run_lesson_plan.py --course "<course>" --units "<units>" --lessons "<lessons>"
+python scripts/run_planner.py --task "<user task>" --planner-mode hybrid --planner-model QWen --json
 ```
 
-3. If the request is specifically about exam generation / question generation, switch to:
-
-```bash
-python scripts/run_exam.py --subject "<subject>" --knowledge-bases "<knowledge_bases>"
-```
-
-4. If the request is specifically about PPT / slide generation, switch to:
-
-```bash
-python scripts/run_ppt.py --course "<course>" --units "<units>" --lessons "<lessons>" --knowledge-points "<knowledge_points>"
-```
-
-5. Otherwise prefer the unified pipeline:
-
-```bash
-python scripts/run_agent.py --task "<user task>"
-```
-
-6. Map optional user intent to flags only when explicit:
-- focus domain: `--focus free|adaptive|assessment|content|interaction`
-- explicit search themes: repeated `--theme "<theme>"`
-- skip framework docs lookup: `--skip-framework-research`
-- skip education search: `--skip-search`
-- fast linear workflow: `--mode sequential`
+3. Do not use any external/system Plan agent as a substitute for the project planner.
+4. If structured parameters are already known, pass them as `--set key=value` flags to `run_planner.py` so the planner can still make the route decision.
+5. Only bypass the planner when the user explicitly asks for MCP, direct capability execution, or workflow-only execution.
 
 ## After execution
 
 Always report:
+- planner analysis and selected route when you used `run_planner.py`
 - framework notes path in `data/framework_notes/`
 - task state path in `data/task_runs/`
 - workflow path in `workflows/`

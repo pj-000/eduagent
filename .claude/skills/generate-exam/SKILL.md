@@ -11,6 +11,8 @@ Use this skill for requests like:
 - "生成一份考试题"
 
 Do not use this skill for PPT / 课件 / 幻灯片 requests.
+The planner is the only default decision layer. This skill should gather exam parameters, then forward the task to `run_planner.py`.
+Do not call the exam MCP tool or `run_capability.py` directly unless the user explicitly asks for MCP or direct capability execution.
 
 ## Required fields
 
@@ -42,23 +44,25 @@ If the user does not specify them, use:
 Run:
 
 ```bash
-python scripts/run_exam.py --subject "<subject>" --knowledge-bases "<knowledge_bases>"
+python scripts/run_planner.py --task "<user task>" --capability exam --planner-mode hybrid --planner-model QWen --json --set subject="<subject>" --set knowledge_bases="<knowledge_bases>"
 ```
 
 Add flags only when explicit:
-- custom constraints: `--constraint "<text>"`
-- custom language: `--language "<text>"`
-- custom counts: `--single-choice-num N` etc.
-- custom difficulty ratios: `--easy-percentage N --medium-percentage N --hard-percentage N`
-- use local knowledge base: `--use-rag`
-- switch model: `--model-type QWen|DeepSeek`
+- custom constraints: `--set constraint="<text>"`
+- custom language: `--set language="<text>"`
+- custom counts: `--set single_choice_num=N` etc.
+- custom difficulty ratios: `--set easy_percentage=N --set medium_percentage=N --set hard_percentage=N`
+- use local knowledge base: `--set use_rag=true`
+- switch model: `--set model_type=QWen|DeepSeek`
 
 ## Expectations
 
-- Do not route exam-generation requests to `scripts/run_agent.py` unless the user explicitly asks for the search/workflow pipeline.
-- If the user says "先联网查资料再生成试卷", run the search path first, then generate the exam.
+- Do not manually route exam-generation requests to `scripts/run_agent.py` or split them into search/workflow phases unless the user explicitly asks to bypass the planner.
+- If the user says "先联网查资料再生成试卷", keep that full intent in the planner task text and let the planner choose the route.
 - Always report:
+  - planner analysis and selected route
   - result JSON path in `results/exams/`
   - result Markdown path in `results/exams/`
   - metadata path in `data/exam_runs/`
   - the key parameters used for this generation
+  - any `missing_fields` returned by the standardized JSON response when validation fails

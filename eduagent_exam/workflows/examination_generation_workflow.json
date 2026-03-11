@@ -1,0 +1,628 @@
+{
+  "class_name": "WorkFlowGraph",
+  "goal": "基于RAG检索内容，通过六路并行架构加速生成六种不同题型的考试题目，并聚合输出。",
+  "nodes": [
+    {
+      "class_name": "WorkFlowNode",
+      "name": "initialize_workflow",
+      "description": "初始化参数。",
+      "inputs": [
+        {
+          "class_name": "Parameter",
+          "name": "goal",
+          "type": "string",
+          "description": "用户目标",
+          "required": true
+        },
+        {
+          "class_name": "Parameter",
+          "name": "subject",
+          "type": "string",
+          "description": "学科",
+          "required": true
+        },
+        {
+          "class_name": "Parameter",
+          "name": "knowledge_bases",
+          "type": "string",
+          "description": "知识点",
+          "required": true
+        },
+        {
+          "class_name": "Parameter",
+          "name": "constraint",
+          "type": "string",
+          "description": "约束条件",
+          "required": true
+        },
+        {
+          "class_name": "Parameter",
+          "name": "language",
+          "type": "string",
+          "description": "语言",
+          "required": true
+        },
+        {
+          "class_name": "Parameter",
+          "name": "single_choice_num",
+          "type": "int",
+          "description": "单选题数量",
+          "required": true
+        },
+        {
+          "class_name": "Parameter",
+          "name": "multiple_choice_num",
+          "type": "int",
+          "description": "多选题数量",
+          "required": true
+        },
+        {
+          "class_name": "Parameter",
+          "name": "true_false_num",
+          "type": "int",
+          "description": "判断题数量",
+          "required": true
+        },
+        {
+          "class_name": "Parameter",
+          "name": "fill_blank_num",
+          "type": "int",
+          "description": "填空题数量",
+          "required": true
+        },
+        {
+          "class_name": "Parameter",
+          "name": "short_answer_num",
+          "type": "int",
+          "description": "简答题数量",
+          "required": true
+        },
+        {
+          "class_name": "Parameter",
+          "name": "programming_num",
+          "type": "int",
+          "description": "编程题数量",
+          "required": true
+        },
+        {
+          "class_name": "Parameter",
+          "name": "easy_percentage",
+          "type": "int",
+          "description": "简单比例",
+          "required": true
+        },
+        {
+          "class_name": "Parameter",
+          "name": "medium_percentage",
+          "type": "int",
+          "description": "中等比例",
+          "required": true
+        },
+        {
+          "class_name": "Parameter",
+          "name": "hard_percentage",
+          "type": "int",
+          "description": "困难比例",
+          "required": true
+        }
+      ],
+      "outputs": [
+        {
+          "class_name": "Parameter",
+          "name": "workflow_parameters",
+          "type": "object",
+          "description": "整合后的参数对象",
+          "required": true
+        }
+      ],
+      "reason": "封装输入参数，为并行节点做准备。",
+      "agents": [
+        {
+          "name": "workflow_initializer_agent",
+          "description": "整合所有输入参数。",
+          "inputs": [
+            {
+              "name": "goal",
+              "type": "string",
+              "description": "用户目标。",
+              "required": true
+            },
+            {
+              "name": "subject",
+              "type": "string",
+              "description": "考试学科。",
+              "required": true
+            },
+            {
+              "name": "knowledge_bases",
+              "type": "string",
+              "description": "知识点。",
+              "required": true
+            },
+            {
+              "name": "constraint",
+              "type": "string",
+              "description": "约束条件。",
+              "required": true
+            },
+            {
+              "name": "language",
+              "type": "string",
+              "description": "语言。",
+              "required": true
+            },
+            {
+              "name": "single_choice_num",
+              "type": "int",
+              "description": "单选题数量。",
+              "required": true
+            },
+            {
+              "name": "multiple_choice_num",
+              "type": "int",
+              "description": "多选题数量。",
+              "required": true
+            },
+            {
+              "name": "true_false_num",
+              "type": "int",
+              "description": "判断题数量。",
+              "required": true
+            },
+            {
+              "name": "fill_blank_num",
+              "type": "int",
+              "description": "填空题数量。",
+              "required": true
+            },
+            {
+              "name": "short_answer_num",
+              "type": "int",
+              "description": "简答题数量。",
+              "required": true
+            },
+            {
+              "name": "programming_num",
+              "type": "int",
+              "description": "编程题数量。",
+              "required": true
+            },
+            {
+              "name": "easy_percentage",
+              "type": "int",
+              "description": "简单比例。",
+              "required": true
+            },
+            {
+              "name": "medium_percentage",
+              "type": "int",
+              "description": "中等比例。",
+              "required": true
+            },
+            {
+              "name": "hard_percentage",
+              "type": "int",
+              "description": "困难比例。",
+              "required": true
+            }
+          ],
+          "outputs": [
+            {
+              "name": "workflow_parameters",
+              "type": "object",
+              "description": "整合后的工作流参数。",
+              "required": true
+            }
+          ],
+          "prompt": "### 目标\n将所有输入参数整合为一个 `workflow_parameters` 对象。\n\n### 要求\n请使用中文进行思考和输出。\n1. 整合输入参数：{goal}、{subject}、{knowledge_bases}、{constraint}、{language}\n2. 整合所有题型数量和难度比例。\n3. **注意**：RAG 上下文将单独传递给生成节点，以确保 JSON 稳定性。\n\n### 输出格式\n## Thought\n确认已接收所有参数，准备整合。\n\n## workflow_parameters\n{{\n  \"goal\": \"{goal}\",\n  \"subject\": \"{subject}\",\n  \"knowledge_bases\": \"{knowledge_bases}\",\n  \"constraint\": \"{constraint}\",\n  \"language\": \"{language}\",\n  \"single_choice_num\": {single_choice_num},\n  \"multiple_choice_num\": {multiple_choice_num},\n  \"true_false_num\": {true_false_num},\n  \"fill_blank_num\": {fill_blank_num},\n  \"short_answer_num\": {short_answer_num},\n  \"programming_num\": {programming_num},\n  \"easy_percentage\": {easy_percentage},\n  \"medium_percentage\": {medium_percentage},\n  \"hard_percentage\": {hard_percentage}\n}}"
+        }
+      ],
+      "action_graph": null,
+      "status": "pending"
+    },
+    {
+      "class_name": "WorkFlowNode",
+      "name": "generate_single_choice",
+      "description": "并行任务1：生成单选题。",
+      "inputs": [
+        {
+          "class_name": "Parameter",
+          "name": "workflow_parameters",
+          "type": "object",
+          "description": "整合后的参数。",
+          "required": true
+        },
+        {
+          "class_name": "Parameter",
+          "name": "rag_context",
+          "type": "string",
+          "description": "全局RAG上下文。",
+          "required": false
+        }
+      ],
+      "outputs": [
+        {
+          "class_name": "Parameter",
+          "name": "single_choice_questions",
+          "type": "array",
+          "description": "单选题列表。",
+          "required": true
+        }
+      ],
+      "reason": "利用RAG上下文生成单选题。",
+      "agents": [
+        {
+          "name": "single_choice_agent",
+          "description": "生成单选题。",
+          "inputs": [
+            {
+              "name": "workflow_parameters",
+              "type": "object",
+              "description": "参数。",
+              "required": true
+            },
+            {
+              "name": "rag_context",
+              "type": "string",
+              "description": "RAG上下文。",
+              "required": false
+            }
+          ],
+          "outputs": [
+            {
+              "name": "single_choice_questions",
+              "type": "array",
+              "description": "题目列表。",
+              "required": true
+            }
+          ],
+          "prompt": "### 目标\n仅生成**单选题**（type=1）。请全程使用中文出题和思考。\n\n### 输入数据\n**参数**：{workflow_parameters}\n\n**上下文（参考材料）**：\n{rag_context}\n\n### 约束条件\n1. **使用RAG或通用知识**：如果提供了上下文，则基于上下文出题；如果上下文为空，则根据 `subject` 和 `knowledge_bases` 的通用知识出题。\n2. **准确性**：每道题目和选项都必须事实准确。\n3. **关键词要求**：每道题目应与指定的 `knowledge_bases` 相关。\n4. **严禁引用原文**：题目必须看起来像标准考试题目。\n   - **禁止使用**：\"根据资料\"、\"文中提到\"、\"据材料可知\"、\"According to the text\" 等引用原文的表述。\n   - **正确方式**：直接以事实提问。\n5. **数量**：必须恰好生成 `single_choice_num` 道题目。\n6. **语言**：必须使用中文出题。\n\n### 输出格式\n## Thought\n正在根据知识点生成单选题，不引用原文。\n\n## single_choice_questions\n[\n  {{\n    \"name\": \"题干内容...\",\n    \"type\": 1,\n    \"knowledge_bases\": \"知识点\",\n    \"analysis\": \"解析...\",\n    \"difficulty\": 1,\n    \"options\": [ {{\"answer\": \"选项A内容\", \"is_answer\": 1}}, {{\"answer\": \"选项B内容\", \"is_answer\": 0}}, {{\"answer\": \"选项C内容\", \"is_answer\": 0}}, {{\"answer\": \"选项D内容\", \"is_answer\": 0}} ]\n  }}\n]"
+        }
+      ],
+      "status": "pending"
+    },
+    {
+      "class_name": "WorkFlowNode",
+      "name": "generate_multiple_choice",
+      "description": "并行任务2：生成多选题。",
+      "inputs": [
+        {
+          "class_name": "Parameter",
+          "name": "workflow_parameters",
+          "type": "object",
+          "description": "整合后的参数。",
+          "required": true
+        },
+        {
+          "class_name": "Parameter",
+          "name": "rag_context",
+          "type": "string",
+          "description": "全局RAG上下文。",
+          "required": false
+        }
+      ],
+      "outputs": [
+        {
+          "class_name": "Parameter",
+          "name": "multiple_choice_questions",
+          "type": "array",
+          "description": "多选题列表。",
+          "required": true
+        }
+      ],
+      "reason": "利用RAG上下文生成多选题。",
+      "agents": [
+        {
+          "name": "multiple_choice_agent",
+          "description": "生成多选题。",
+          "inputs": [
+            {
+              "name": "workflow_parameters",
+              "type": "object",
+              "description": "参数。",
+              "required": true
+            },
+            {
+              "name": "rag_context",
+              "type": "string",
+              "description": "RAG上下文。",
+              "required": false
+            }
+          ],
+          "outputs": [
+            {
+              "name": "multiple_choice_questions",
+              "type": "array",
+              "description": "题目列表。",
+              "required": true
+            }
+          ],
+          "prompt": "### 目标\n仅生成**多选题**（type=2）。请全程使用中文出题和思考。\n\n### 输入数据\n**参数**：{workflow_parameters}\n\n**上下文（参考材料）**：\n{rag_context}\n\n### 约束条件\n1. **使用RAG或通用知识**：如果提供了上下文，则基于上下文出题；如果上下文为空，则根据 `subject` 和 `knowledge_bases` 的通用知识出题。\n2. **准确性**：每道题目和选项都必须事实准确。\n3. **关键词要求**：每道题目应与指定的 `knowledge_bases` 相关。\n4. **严禁引用原文**：题目必须看起来像标准考试题目。\n   - **禁止使用**：\"根据资料\"、\"文中提到\"、\"据材料可知\"、\"According to the text\" 等引用原文的表述。\n   - **正确方式**：直接以事实提问。\n5. **数量**：必须恰好生成 `multiple_choice_num` 道题目。\n6. **语言**：必须使用中文出题。\n\n### 输出格式\n## Thought\n正在根据知识点生成多选题，不引用原文。\n\n## multiple_choice_questions\n[\n  {{\n    \"name\": \"题干内容...\",\n    \"type\": 2,\n    \"knowledge_bases\": \"知识点\",\n    \"analysis\": \"解析...\",\n    \"difficulty\": 2,\n    \"options\": [ {{\"answer\": \"选项A内容\", \"is_answer\": 1}}, {{\"answer\": \"选项B内容\", \"is_answer\": 1}}, {{\"answer\": \"选项C内容\", \"is_answer\": 0}}, {{\"answer\": \"选项D内容\", \"is_answer\": 0}} ]\n  }}\n]"
+        }
+      ],
+      "status": "pending"
+    },
+    {
+      "class_name": "WorkFlowNode",
+      "name": "generate_true_false",
+      "description": "并行任务3：生成判断题。",
+      "inputs": [
+        {
+          "class_name": "Parameter",
+          "name": "workflow_parameters",
+          "type": "object",
+          "description": "整合后的参数。",
+          "required": true
+        },
+        {
+          "class_name": "Parameter",
+          "name": "rag_context",
+          "type": "string",
+          "description": "全局RAG上下文。",
+          "required": false
+        }
+      ],
+      "outputs": [
+        {
+          "class_name": "Parameter",
+          "name": "true_false_questions",
+          "type": "array",
+          "description": "判断题列表。",
+          "required": true
+        }
+      ],
+      "reason": "利用RAG上下文生成判断题。",
+      "agents": [
+        {
+          "name": "true_false_agent",
+          "description": "生成判断题。",
+          "inputs": [
+            {
+              "name": "workflow_parameters",
+              "type": "object",
+              "description": "参数。",
+              "required": true
+            },
+            {
+              "name": "rag_context",
+              "type": "string",
+              "description": "RAG上下文。",
+              "required": false
+            }
+          ],
+          "outputs": [
+            {
+              "name": "true_false_questions",
+              "type": "array",
+              "description": "题目列表。",
+              "required": true
+            }
+          ],
+          "prompt": "### 目标\n仅生成**判断题**（type=3）。请全程使用中文出题和思考。\n\n### 输入数据\n**参数**：{workflow_parameters}\n\n**上下文（参考材料）**：\n{rag_context}\n\n### 约束条件\n1. **使用RAG或通用知识**：如果提供了上下文，则基于上下文出题；如果上下文为空，则根据 `subject` 和 `knowledge_bases` 的通用知识出题。\n2. **准确性**：每道题目和选项都必须事实准确。\n3. **关键词要求**：每道题目应与指定的 `knowledge_bases` 相关。\n4. **严禁引用原文**：题目必须看起来像标准考试题目。\n   - **禁止使用**：\"根据资料\"、\"文中提到\"、\"据材料可知\"、\"According to the text\" 等引用原文的表述。\n   - **正确方式**：直接以事实提问。\n5. **数量**：必须恰好生成 `true_false_num` 道题目。\n6. **语言**：必须使用中文出题。\n\n### 输出格式\n## Thought\n正在根据知识点生成判断题，不引用原文。\n\n## true_false_questions\n[\n  {{\n    \"name\": \"题干内容...\",\n    \"type\": 3,\n    \"knowledge_bases\": \"知识点\",\n    \"analysis\": \"解析...\",\n    \"difficulty\": 1,\n    \"options\": [ {{\"answer\": \"正确\", \"is_answer\": 1}} ]\n  }}\n]"
+        }
+      ],
+      "status": "pending"
+    },
+    {
+      "class_name": "WorkFlowNode",
+      "name": "generate_fill_blank",
+      "description": "并行任务4：生成填空题。",
+      "inputs": [
+        {
+          "class_name": "Parameter",
+          "name": "workflow_parameters",
+          "type": "object",
+          "description": "整合后的参数。",
+          "required": true
+        },
+        {
+          "class_name": "Parameter",
+          "name": "rag_context",
+          "type": "string",
+          "description": "全局RAG上下文。",
+          "required": false
+        }
+      ],
+      "outputs": [
+        {
+          "class_name": "Parameter",
+          "name": "fill_blank_questions",
+          "type": "array",
+          "description": "填空题列表。",
+          "required": true
+        }
+      ],
+      "reason": "利用RAG上下文生成填空题。",
+      "agents": [
+        {
+          "name": "fill_blank_agent",
+          "description": "生成填空题。",
+          "inputs": [
+            {
+              "name": "workflow_parameters",
+              "type": "object",
+              "description": "参数。",
+              "required": true
+            },
+            {
+              "name": "rag_context",
+              "type": "string",
+              "description": "RAG上下文。",
+              "required": false
+            }
+          ],
+          "outputs": [
+            {
+              "name": "fill_blank_questions",
+              "type": "array",
+              "description": "题目列表。",
+              "required": true
+            }
+          ],
+          "prompt": "### 目标\n仅生成**填空题**（type=4）。请全程使用中文出题和思考。\n\n### 输入数据\n**参数**：{workflow_parameters}\n\n**上下文（参考材料）**：\n{rag_context}\n\n### 约束条件\n1. **使用RAG或通用知识**：如果提供了上下文，则基于上下文出题；如果上下文为空，则根据 `subject` 和 `knowledge_bases` 的通用知识出题。\n2. **准确性**：每道题目和选项都必须事实准确。\n3. **关键词要求**：每道题目应与指定的 `knowledge_bases` 相关。\n4. **严禁引用原文**：题目必须看起来像标准考试题目。\n   - **禁止使用**：\"根据资料\"、\"文中提到\"、\"据材料可知\"、\"According to the text\" 等引用原文的表述。\n   - **正确方式**：直接以事实提问。\n5. **数量**：必须恰好生成 `fill_blank_num` 道题目。\n6. **语言**：必须使用中文出题。\n7. **格式**：包含 `mark` 字段用于评分。\n\n### 输出格式\n## Thought\n正在根据知识点生成填空题，不引用原文。\n\n## fill_blank_questions\n[\n  {{\n    \"name\": \"包含____的题干内容。\",\n    \"type\": 4,\n    \"knowledge_bases\": \"知识点\",\n    \"analysis\": \"解析...\",\n    \"difficulty\": 2,\n    \"options\": [ {{\"answer\": \"正确答案\"}} ],\n    \"mark\": [ {{\"score_point\": \"关键词\", \"score_percentage\": \"100%\"}} ]\n  }}\n]"
+        }
+      ],
+      "status": "pending"
+    },
+    {
+      "class_name": "WorkFlowNode",
+      "name": "generate_short_answer",
+      "description": "并行任务5：生成简答题。",
+      "inputs": [
+        {
+          "class_name": "Parameter",
+          "name": "workflow_parameters",
+          "type": "object",
+          "description": "整合后的参数。",
+          "required": true
+        },
+        {
+          "class_name": "Parameter",
+          "name": "rag_context",
+          "type": "string",
+          "description": "全局RAG上下文。",
+          "required": false
+        }
+      ],
+      "outputs": [
+        {
+          "class_name": "Parameter",
+          "name": "short_answer_questions",
+          "type": "array",
+          "description": "简答题列表。",
+          "required": true
+        }
+      ],
+      "reason": "利用RAG上下文生成简答题。",
+      "agents": [
+        {
+          "name": "short_answer_agent",
+          "description": "生成简答题。",
+          "inputs": [
+            {
+              "name": "workflow_parameters",
+              "type": "object",
+              "description": "参数。",
+              "required": true
+            },
+            {
+              "name": "rag_context",
+              "type": "string",
+              "description": "RAG上下文。",
+              "required": false
+            }
+          ],
+          "outputs": [
+            {
+              "name": "short_answer_questions",
+              "type": "array",
+              "description": "题目列表。",
+              "required": true
+            }
+          ],
+          "prompt": "### 目标\n仅生成**简答题**（type=5）。请全程使用中文出题和思考。\n\n### 输入数据\n**参数**：{workflow_parameters}\n\n**上下文（参考材料）**：\n{rag_context}\n\n### 约束条件\n1. **使用RAG或通用知识**：如果提供了上下文，则基于上下文出题；如果上下文为空，则根据 `subject` 和 `knowledge_bases` 的通用知识出题。\n2. **准确性**：每道题目和选项都必须事实准确。\n3. **关键词要求**：每道题目应与指定的 `knowledge_bases` 相关。\n4. **严禁引用原文**：题目必须看起来像标准考试题目。\n   - **禁止使用**：\"根据资料\"、\"文中提到\"、\"据材料可知\"、\"According to the text\" 等引用原文的表述。\n   - **正确方式**：直接以事实提问。\n5. **数量**：必须恰好生成 `short_answer_num` 道题目。\n6. **语言**：必须使用中文出题。\n7. **格式**：包含 `mark` 字段，列出评分要点。\n\n### 输出格式\n## Thought\n正在根据知识点生成简答题，不引用原文。\n\n## short_answer_questions\n[\n  {{\n    \"name\": \"题干内容...\",\n    \"type\": 5,\n    \"knowledge_bases\": \"知识点\",\n    \"analysis\": \"解析...\",\n    \"difficulty\": 2,\n    \"options\": [ {{\"answer\": \"参考答案\"}} ],\n    \"mark\": [ {{\"score_point\": \"核心概念1\", \"score_percentage\": \"50%\"}}, {{\"score_point\": \"核心概念2\", \"score_percentage\": \"50%\"}} ]\n  }}\n]"
+        }
+      ],
+      "status": "pending"
+    },
+    {
+      "class_name": "WorkFlowNode",
+      "name": "generate_programming",
+      "description": "并行任务6：生成编程题。",
+      "inputs": [
+        {
+          "class_name": "Parameter",
+          "name": "workflow_parameters",
+          "type": "object",
+          "description": "整合后的参数。",
+          "required": true
+        },
+        {
+          "class_name": "Parameter",
+          "name": "rag_context",
+          "type": "string",
+          "description": "全局RAG上下文。",
+          "required": false
+        }
+      ],
+      "outputs": [
+        {
+          "class_name": "Parameter",
+          "name": "programming_questions",
+          "type": "array",
+          "description": "编程题列表。",
+          "required": true
+        }
+      ],
+      "reason": "利用RAG上下文生成编程题。",
+      "agents": [
+        {
+          "name": "programming_agent",
+          "description": "生成编程题。",
+          "inputs": [
+            {
+              "name": "workflow_parameters",
+              "type": "object",
+              "description": "参数。",
+              "required": true
+            },
+            {
+              "name": "rag_context",
+              "type": "string",
+              "description": "RAG上下文。",
+              "required": false
+            }
+          ],
+          "outputs": [
+            {
+              "name": "programming_questions",
+              "type": "array",
+              "description": "题目列表。",
+              "required": true
+            }
+          ],
+          "prompt": "### 目标\n仅生成**编程题**（type=6）。请全程使用中文出题和思考。\n\n### 输入数据\n**参数**：{workflow_parameters}\n\n**上下文（参考材料）**：\n{rag_context}\n\n### 约束条件\n1. **使用RAG或通用知识**：如果提供了上下文，则基于上下文出题；如果上下文为空，则根据 `subject` 和 `knowledge_bases` 的通用知识出题。\n2. **准确性**：每道题目和选项都必须事实准确。\n3. **关键词要求**：每道题目应与指定的 `knowledge_bases` 相关。\n4. **严禁引用原文**：题目必须看起来像标准考试题目。\n   - **禁止使用**：\"根据资料\"、\"文中提到\"、\"据材料可知\"、\"According to the text\" 等引用原文的表述。\n   - **正确方式**：直接以事实提问。\n5. **数量**：必须恰好生成 `programming_num` 道题目。\n6. **语言**：必须使用中文出题。\n7. **格式**：包含 `mark` 字段用于评分。\n8. **语言**：题干描述使用中文，代码部分可使用英文。\n\n### 输出格式\n## Thought\n正在根据知识点生成编程题，不引用原文。\n\n## programming_questions\n[\n  {{\n    \"name\": \"编写一个函数实现……\",\n    \"type\": 6,\n    \"knowledge_bases\": \"知识点\",\n    \"analysis\": \"解析...\",\n    \"difficulty\": 3,\n    \"options\": [ {{\"answer\": \"def solution():...\"}} ],\n    \"mark\": [ {{\"score_point\": \"逻辑正确\", \"score_percentage\": \"50%\"}}, {{\"score_point\": \"代码规范\", \"score_percentage\": \"50%\"}} ]\n  }}\n]"
+        }
+      ],
+      "status": "pending"
+    }
+  ],
+  "edges": [
+    {
+      "class_name": "WorkFlowEdge",
+      "source": "initialize_workflow",
+      "target": "generate_single_choice",
+      "priority": 0
+    },
+    {
+      "class_name": "WorkFlowEdge",
+      "source": "initialize_workflow",
+      "target": "generate_multiple_choice",
+      "priority": 0
+    },
+    {
+      "class_name": "WorkFlowEdge",
+      "source": "initialize_workflow",
+      "target": "generate_true_false",
+      "priority": 0
+    },
+    {
+      "class_name": "WorkFlowEdge",
+      "source": "initialize_workflow",
+      "target": "generate_fill_blank",
+      "priority": 0
+    },
+    {
+      "class_name": "WorkFlowEdge",
+      "source": "initialize_workflow",
+      "target": "generate_short_answer",
+      "priority": 0
+    },
+    {
+      "class_name": "WorkFlowEdge",
+      "source": "initialize_workflow",
+      "target": "generate_programming",
+      "priority": 0
+    }
+  ]
+}

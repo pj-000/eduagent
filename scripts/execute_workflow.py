@@ -12,6 +12,7 @@ import json
 import argparse
 from datetime import datetime
 from pathlib import Path
+from typing import Any
 
 from dotenv import load_dotenv
 
@@ -180,6 +181,25 @@ def find_latest_workflow() -> Path | None:
     return json_files[0] if json_files else None
 
 
+def build_default_inputs(graph: WorkFlowGraph, task_text: str) -> dict[str, str]:
+    """
+    为统一入口自动构造初始输入，避免每次都走交互式输入。
+    默认将自然语言任务填入首节点所需字段；若存在 goal 字段则优先写入 goal。
+    """
+    if not graph.nodes:
+        return {}
+
+    first_node = graph.nodes[0]
+    if not first_node.inputs:
+        return {}
+
+    auto_inputs = {}
+    for param in first_node.inputs:
+        param_name = param.name if hasattr(param, "name") else param.get("name", "unknown")
+        auto_inputs[param_name] = task_text
+    return auto_inputs
+
+
 def collect_inputs_interactive(graph: WorkFlowGraph) -> dict:
     """
     交互式收集工作流第一个节点的输入参数。
@@ -250,6 +270,91 @@ def save_result(output: str, workflow_path: str) -> Path:
     return result_path
 
 
+def run_workflow_execution(
+    workflow_path: str | Path | None = None,
+    inputs: dict[str, Any] | None = None,
+    inputs_path: str | None = None,
+    max_steps: int = 5,
+    save: bool = True,
+    verbose: bool = True,
+) -> dict[str, Any]:
+    """以编程方式执行工作流，供统一入口复用。"""
+    if workflow_path:
+        resolved_workflow_path = Path(workflow_path)
+        if not resolved_workflow_path.is_absolute():
+            resolved_workflow_path = PROJECT_ROOT / resolved_workflow_path
+    else:
+        resolved_workflow_path = find_latest_workflow()
+        if resolved_workflow_path is None:
+            raise FileNotFoundError("未找到工作流文件，请先生成工作流。")
+
+    if not resolved_workflow_path.exists():
+        raise FileNotFoundError(f"工作流文件不存在: {resolved_workflow_path}")
+
+    if verbose:
+        print("🔧 教育功能工作流执行器启动")
+        print(f"📄 工作流文件：{resolved_workflow_path.name}")
+        print("-" * 60)
+        print("📊 加载工作流...")
+
+    graph = load_workflow(str(resolved_workflow_path))
+
+    if verbose:
+        print(f"  目标：{graph.goal[:100]}")
+        print(f"  子任务数：{len(graph.nodes)}")
+        for i, node in enumerate(graph.nodes, 1):
+            desc = node.description[:60] if node.description else "(无描述)"
+            print(f"  {i}. {node.name} — {desc}")
+
+    if inputs_path:
+        resolved_inputs_path = Path(inputs_path)
+        if not resolved_inputs_path.is_absolute():
+            resolved_inputs_path = PROJECT_ROOT / resolved_inputs_path
+        execution_inputs = collect_inputs_from_file(str(resolved_inputs_path))
+        if verbose:
+            print(f"\n📥 从文件加载了 {len(execution_inputs)} 个输入参数")
+    else:
+        execution_inputs = inputs or {}
+
+    if execution_inputs and verbose:
+        print("\n📥 输入参数：")
+        for key, value in execution_inputs.items():
+            display_val = str(value)
+            if len(display_val) > 80:
+                display_val = display_val[:80] + "..."
+            print(f"  {key}: {display_val}")
+
+    if verbose:
+        print("\n⚙️  初始化执行引擎...")
+    llm_config = build_llm_config()
+    llm = build_llm(llm_config)
+
+    agent_manager = AgentManager()
+    agent_manager.add_agents_from_workflow(graph, llm_config=llm_config)
+    if verbose:
+        print(f"  已注册 {len(agent_manager.agents)} 个 Agent")
+        print("\n" + "=" * 60)
+        print("🚀 开始执行工作流")
+        print("=" * 60 + "\n")
+
+    workflow = WorkFlow(
+        graph=graph,
+        llm=llm,
+        agent_manager=agent_manager,
+        max_execution_steps=max_steps,
+    )
+    output = workflow.execute(inputs=execution_inputs)
+
+    result_path = save_result(output, str(resolved_workflow_path)) if save else None
+    return {
+        "workflow_path": resolved_workflow_path,
+        "graph": graph,
+        "inputs": execution_inputs,
+        "output": output,
+        "result_path": result_path,
+    }
+
+
 def main():
     parser = argparse.ArgumentParser(
         description="教育功能工作流执行器 — 基于 EvoAgentX WorkFlow 引擎",
@@ -290,87 +395,43 @@ def main():
     )
     args = parser.parse_args()
 
-    # 加载工作流
-    if args.workflow:
-        workflow_path = Path(args.workflow)
-        if not workflow_path.is_absolute():
-            workflow_path = PROJECT_ROOT / workflow_path
-    else:
-        workflow_path = find_latest_workflow()
-        if workflow_path is None:
+    # 仍保留原交互式模式
+    workflow_path = args.workflow
+    if workflow_path is None:
+        latest_workflow = find_latest_workflow()
+        if latest_workflow is None:
             print("错误：未找到工作流文件")
             print("请先运行功能二（python scripts/generate_workflow.py）生成工作流")
             sys.exit(1)
+        workflow_path = str(latest_workflow)
 
-    if not workflow_path.exists():
-        print(f"错误：工作流文件不存在 {workflow_path}")
-        sys.exit(1)
-
-    print("🔧 教育功能工作流执行器启动")
-    print(f"📄 工作流文件：{workflow_path.name}")
-    print("-" * 60)
-
-    # 加载工作流图
-    print("📊 加载工作流...")
-    graph = load_workflow(str(workflow_path))
-    print(f"  目标：{graph.goal[:100]}")
-    print(f"  子任务数：{len(graph.nodes)}")
-    for i, node in enumerate(graph.nodes, 1):
-        desc = node.description[:60] if node.description else "(无描述)"
-        print(f"  {i}. {node.name} — {desc}")
-
-    # 收集输入参数
+    graph = load_workflow(str(Path(workflow_path) if Path(workflow_path).is_absolute() else PROJECT_ROOT / workflow_path))
     if args.inputs:
         inputs = collect_inputs_from_file(args.inputs)
-        print(f"\n📥 从文件加载了 {len(inputs)} 个输入参数")
     else:
         inputs = collect_inputs_interactive(graph)
 
-    if inputs:
-        print(f"\n📥 输入参数：")
-        for k, v in inputs.items():
-            display_val = v[:80] + "..." if len(str(v)) > 80 else v
-            print(f"  {k}: {display_val}")
-
-    # 构建 LLM 和 AgentManager
-    print("\n⚙️  初始化执行引擎...")
-    llm_config = build_llm_config()
-    llm = build_llm(llm_config)
-
-    agent_manager = AgentManager()
-    agent_manager.add_agents_from_workflow(graph, llm_config=llm_config)
-    print(f"  已注册 {len(agent_manager.agents)} 个 Agent")
-
-    # 创建 WorkFlow 并执行
-    print("\n" + "=" * 60)
-    print("🚀 开始执行工作流")
-    print("=" * 60 + "\n")
-
-    workflow = WorkFlow(
-        graph=graph,
-        llm=llm,
-        agent_manager=agent_manager,
-        max_execution_steps=args.max_steps,
-    )
-
     try:
-        output = workflow.execute(inputs=inputs)
+        result_bundle = run_workflow_execution(
+            workflow_path=workflow_path,
+            inputs=inputs,
+            max_steps=args.max_steps,
+            save=not args.no_save,
+            verbose=True,
+        )
     except Exception as e:
         print(f"\n❌ 工作流执行失败：{e}")
         import traceback
         traceback.print_exc()
         sys.exit(1)
 
-    # 输出结果
     print("\n" + "=" * 60)
     print("✅ 工作流执行完成！")
     print("=" * 60)
-    print(f"\n{output}")
+    print(f"\n{result_bundle['output']}")
 
-    # 保存结果
     if not args.no_save:
-        result_path = save_result(output, str(workflow_path))
-        print(f"\n📄 结果已保存：{result_path}")
+        print(f"\n📄 结果已保存：{result_bundle['result_path']}")
 
 
 if __name__ == "__main__":

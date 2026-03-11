@@ -1,0 +1,124 @@
+{
+    "class_name": "WorkFlowGraph",
+    "goal": "为\"{course}\"课程生成PPT幻灯片的教学大纲和标题序列。\n\n课程信息：\n- 课程名称: {course}\n- 单元: {units}\n- 课时: {lessons}\n- 知识点: {knowledge_points}\n- 附加要求: {constraint}\n- 页面限制: {page_limit}\n- 一级标题数量: {title_count}\n",
+    "nodes": [
+        {
+            "class_name": "WorkFlowNode",
+            "name": "outline_generation",
+            "description": "根据课程信息生成详细的教学内容大纲，用于后续PPT内容的生成。",
+            "inputs": [
+                {
+                    "class_name": "Parameter",
+                    "name": "goal",
+                    "type": "string",
+                    "description": "用户的目标文本，包含课程、单元、课时、知识点等信息。",
+                    "required": true
+                }
+            ],
+            "outputs": [
+                {
+                    "class_name": "Parameter",
+                    "name": "teaching_outline",
+                    "type": "string",
+                    "description": "生成的详细教学内容大纲。",
+                    "required": true
+                }
+            ],
+            "reason": "教学大纲是PPT内容生成的基础，需要确保内容全面且有深度。",
+            "agents": [
+                {
+                    "name": "outline_generation_agent",
+                    "description": "根据课程信息生成详细的教学内容大纲。",
+                    "inputs": [
+                        {
+                            "name": "goal",
+                            "type": "string",
+                            "description": "用户的目标文本。",
+                            "required": true
+                        }
+                    ],
+                    "outputs": [
+                        {
+                            "name": "teaching_outline",
+                            "type": "string",
+                            "description": "生成的详细教学内容大纲。",
+                            "required": true
+                        }
+                    ],
+                    "prompt": "### Objective\n你是一位经验丰富的老师，需要详细思考教学内容，确保内容全面且有深度。\n\n### Instructions\n1. 仔细阅读以下课程信息：<input>{goal}</input>\n2. 根据课程名称、单元、课时和知识点，详细列举教学内容大纲。\n3. 大纲要全面覆盖所有指定的教学内容，确保知识点完整。\n4. 内容要有深度，包含核心概念、原理、应用场景等。\n5. 如果有附加要求，需在大纲中体现。\n\n### Output Format\nYour final output should ALWAYS in the following format:\n\n## Thought\n简要说明大纲的设计思路和知识覆盖情况。\n\n## teaching_outline\n详细的教学内容大纲，使用层次清晰的格式呈现。"
+                }
+            ],
+            "status": "pending"
+        },
+        {
+            "class_name": "WorkFlowNode",
+            "name": "title_extraction",
+            "description": "从教学大纲中提取PPT的标题序列，确保标题逻辑连贯且全面覆盖大纲内容。",
+            "inputs": [
+                {
+                    "class_name": "Parameter",
+                    "name": "goal",
+                    "type": "string",
+                    "description": "用户的目标文本，包含标题数量限制等信息。",
+                    "required": true
+                },
+                {
+                    "class_name": "Parameter",
+                    "name": "teaching_outline",
+                    "type": "string",
+                    "description": "前一步生成的详细教学内容大纲。",
+                    "required": true
+                }
+            ],
+            "outputs": [
+                {
+                    "class_name": "Parameter",
+                    "name": "title_sequence",
+                    "type": "string",
+                    "description": "提取出的PPT标题序列，每行一个标题，格式为'序号、标题'。",
+                    "required": true
+                }
+            ],
+            "reason": "从详细大纲中提炼关键标题，作为每页PPT的主题。",
+            "agents": [
+                {
+                    "name": "title_extraction_agent",
+                    "description": "从教学大纲中提取PPT标题序列。",
+                    "inputs": [
+                        {
+                            "name": "goal",
+                            "type": "string",
+                            "description": "包含标题数量限制的目标文本。",
+                            "required": true
+                        },
+                        {
+                            "name": "teaching_outline",
+                            "type": "string",
+                            "description": "详细教学大纲。",
+                            "required": true
+                        }
+                    ],
+                    "outputs": [
+                        {
+                            "name": "title_sequence",
+                            "type": "string",
+                            "description": "PPT标题序列。",
+                            "required": true
+                        }
+                    ],
+                    "prompt": "### Objective\n你是AI助手，从详细教学大纲中提取最重要的内容作为PPT标题序列，确保标题全面且有深度。\n\n### Instructions\n1. 阅读课程目标和标题数量限制：<input>{goal}</input>\n2. 审视教学大纲内容：<input>{teaching_outline}</input>\n3. 从大纲中提取最重要、最核心的内容作为标题。\n4. 标题要全面覆盖大纲的主要知识模块。\n5. 标题之间保持逻辑连贯性，从基础到进阶递进。\n6. 严格按照指定数量输出标题（如果有限制）。\n\n### Output Format\nYour final output should ALWAYS in the following format:\n\n## Thought\n简要说明标题选取的逻辑和覆盖范围。\n\n## title_sequence\n1、标题1\n2、标题2\n3、标题3\n..."
+                }
+            ],
+            "status": "pending"
+        }
+    ],
+    "edges": [
+        {
+            "class_name": "WorkFlowEdge",
+            "source": "outline_generation",
+            "target": "title_extraction",
+            "priority": 0
+        }
+    ],
+    "graph": null
+}

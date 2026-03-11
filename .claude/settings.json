@@ -1,0 +1,25 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python scripts/run_agent.py:*)",
+      "Bash(python scripts/framework_research.py:*)",
+      "Bash(python scripts/search_edu.py:*)",
+      "Bash(python scripts/generate_workflow.py:*)",
+      "Bash(python scripts/execute_workflow.py:*)",
+      "Bash(python scripts/run_lesson_plan.py:*)",
+      "Bash(python scripts/run_exam.py:*)",
+      "Bash(python scripts/run_ppt.py:*)",
+      "Bash(python scripts/check_results.py:*)",
+      "Bash(python scripts/list_results.py:*)",
+      "Bash(python3 scripts/run_agent.py:*)",
+      "Bash(python3 scripts/framework_research.py:*)",
+      "Bash(python3 scripts/search_edu.py:*)",
+      "Bash(python3 scripts/generate_workflow.py:*)",
+      "Bash(python3 scripts/execute_workflow.py:*)",
+      "Bash(python3 scripts/run_lesson_plan.py:*)",
+      "Bash(python3 scripts/run_exam.py:*)",
+      "Bash(python3 scripts/run_ppt.py:*)",
+      "Bash(git status:*)"
+    ]
+  }
+}

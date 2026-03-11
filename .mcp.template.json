@@ -1,0 +1,46 @@
+{
+  "mcpServers": {
+    "eduagent-lesson-plan": {
+      "command": "python",
+      "args": [
+        "scripts/lesson_plan_mcp.py"
+      ],
+      "cwd": "."
+    },
+    "eduagent-exam": {
+      "command": "python",
+      "args": [
+        "scripts/exam_mcp.py"
+      ],
+      "cwd": "."
+    },
+    "eduagent-ppt": {
+      "command": "python",
+      "args": [
+        "scripts/ppt_mcp.py"
+      ],
+      "cwd": "."
+    },
+    "playwright": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@playwright/mcp@latest"
+      ]
+    },
+    "github": {
+      "command": "docker",
+      "args": [
+        "run",
+        "-i",
+        "--rm",
+        "-e",
+        "GITHUB_PERSONAL_ACCESS_TOKEN",
+        "ghcr.io/github/github-mcp-server"
+      ],
+      "env": {
+        "GITHUB_PERSONAL_ACCESS_TOKEN": "YOUR_GITHUB_PERSONAL_ACCESS_TOKEN"
+      }
+    }
+  }
+}

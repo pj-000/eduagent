@@ -1,0 +1,191 @@
+{
+    "class_name": "WorkFlowGraph",
+    "goal": "请为\"{course}\"课程生成一份完整的专业教案。\n\n        课程信息：\n        - 课程名称: {course}\n        - 单元: {units}\n        - 课时: {lessons}\n        - 附加要求: {constraint}\n        - 字数要求: {word_limit}\n\n        设计要求：\n        1. 最终产出必须是由多个专职智能体协作完成的高质量教案内容。\n        2. 生成的教案结构需要足够完整。\n        3. **RAG增强模式**：如果输入中包含检索到的参考资料，必须严格基于资料内容生成。\n        ",
+    "nodes": [
+        {
+            "class_name": "WorkFlowNode",
+            "name": "course_outline_design",
+            "description": "设计课程的详细大纲，包括理论和实践部分。",
+            "inputs": [
+                {
+                    "class_name": "Parameter",
+                    "name": "goal",
+                    "type": "string",
+                    "description": "用户的目标文本格式，可能包含RAG检索到的本地参考资料。",
+                    "required": true
+                }
+            ],
+            "outputs": [
+                {
+                    "class_name": "Parameter",
+                    "name": "outline_structure",
+                    "type": "string",
+                    "description": "生成的完整课程大纲结构。",
+                    "required": true
+                }
+            ],
+            "reason": "确定课程的整体结构，以便后续细分内容。",
+            "agents": [
+                {
+                    "name": "outline_design_agent",
+                    "description": "设计课程的详细大纲。",
+                    "inputs": [
+                        {
+                            "name": "goal",
+                            "type": "string",
+                            "description": "用户的目标文本格式。",
+                            "required": true
+                        }
+                    ],
+                    "outputs": [
+                        {
+                            "name": "outline_structure",
+                            "type": "string",
+                            "description": "生成的完整课程大纲结构。",
+                            "required": true
+                        }
+                    ],
+                    "prompt": "### Objective\n根据用户目标设计详细的教案大纲。**关键要求：充分利用本地知识库资料规划大纲结构。**\n\n### Instructions\n1. 阅读并理解教学目标：<input>{goal}</input>\n2. **RAG资料检查（重要）**：检查goal中是否包含“### 📚 本地知识库参考资料”部分。\n   - **若存在资料**：大纲的知识点安排必须涵盖这些资料的核心内容，确保大纲与提供的资料高度相关。\n   - **若无资料**：根据通用专业知识设计大纲。\n3. 设计教案大纲，必须包含以下完整结构：\n   - 课程基本信息\n   - 教学目标：知识、能力、素养\n   - 教学重点与难点\n   - 教学方法与手段\n   - 教学过程设计：导入、理论讲解、实践操作、案例分析、总结提升\n   - 教学资源与辅助材料\n   - 教学实施建议\n   - 教学反思与改进\n4. 根据目标中的字数要求，合理分配各部分字数。\n5. 输出标准Markdown格式的大纲框架。\n\n### Output Format\nYour final output should ALWAYS in the following format:\n\n## Thought\nBriefly explain how you incorporated the reference materials (if any) into the outline structure.\n\n## outline_structure\n生成的完整教案大纲结构，使用Markdown格式。"
+                }
+            ],
+            "status": "pending"
+        },
+        {
+            "class_name": "WorkFlowNode",
+            "name": "content_generation_theory",
+            "description": "根据大纲生成理论教学内容。",
+            "inputs": [
+                {
+                    "class_name": "Parameter",
+                    "name": "goal",
+                    "type": "string",
+                    "description": "用户的目标文本，含RAG资料。",
+                    "required": true
+                },
+                {
+                    "class_name": "Parameter",
+                    "name": "outline_structure",
+                    "type": "string",
+                    "description": "大纲结构。",
+                    "required": true
+                }
+            ],
+            "outputs": [
+                {
+                    "class_name": "Parameter",
+                    "name": "theory_content",
+                    "type": "string",
+                    "description": "理论教学部分的详细内容。",
+                    "required": true
+                }
+            ],
+            "reason": "确保课程理论部分内容详实、准确且基于知识库。",
+            "agents": [
+                {
+                    "name": "theory_content_generation_agent",
+                    "description": "生成理论教学内容，确保准确性。",
+                    "inputs": [
+                        {
+                            "name": "goal",
+                            "type": "string",
+                            "description": "用户的目标文本。",
+                            "required": true
+                        },
+                        {
+                            "name": "outline_structure",
+                            "type": "string",
+                            "description": "大纲结构。",
+                            "required": true
+                        }
+                    ],
+                    "outputs": [
+                        {
+                            "name": "theory_content",
+                            "type": "string",
+                            "description": "理论教学内容。",
+                            "required": true
+                        }
+                    ],
+                    "prompt": "### Objective\n生成详细的理论教学内容。**关键要求：严格基于本地知识库资料进行解释，拒绝幻觉。**\n\n### Instructions\n1. 阅读课程目标：<input>{goal}</input>\n2. 审视大纲结构：<input>{outline_structure}</input>\n3. **RAG资料引用（核心）**：\n   - 仔细阅读goal中的“### 📚 本地知识库参考资料”。\n   - 生成“核心概念讲解”和“理论框架”时，**必须直接引用或改写参考资料中的定义、原理和数据**。\n   - 如果参考资料提供了特定的解释角度，请沿用该角度，不要随意发挥。\n4. 生成以下理论教学内容（Markdown格式）：\n   - **教学目标**：细化目标\n   - **教学重点与难点**：基于资料分析重难点\n   - **核心概念讲解**：(利用RAG资料) 详细解释\n   - **理论框架**：构建体系\n5. 字数控制：理论部分应占总字数的40-45%。\n\n### Output Format\nYour final output should ALWAYS in the following format:\n\n## Thought\nExplain which specific knowledge points from the RAG materials were used in the theory generation.\n\n## theory_content\n详细的理论教学内容，Markdown格式。"
+                }
+            ],
+            "status": "pending"
+        },
+        {
+            "class_name": "WorkFlowNode",
+            "name": "content_generation_practice",
+            "description": "根据大纲生成实践教学内容。",
+            "inputs": [
+                {
+                    "class_name": "Parameter",
+                    "name": "goal",
+                    "type": "string",
+                    "description": "用户的目标文本，含RAG资料。",
+                    "required": true
+                },
+                {
+                    "class_name": "Parameter",
+                    "name": "outline_structure",
+                    "type": "string",
+                    "description": "大纲结构。",
+                    "required": true
+                }
+            ],
+            "outputs": [
+                {
+                    "class_name": "Parameter",
+                    "name": "practice_content",
+                    "type": "string",
+                    "description": "实践教学部分的详细内容。",
+                    "required": true
+                }
+            ],
+            "reason": "确保实践部分包含知识库中的案例或代码。",
+            "agents": [
+                {
+                    "name": "practice_content_generator",
+                    "description": "生成实践教学内容。",
+                    "inputs": [
+                        {
+                            "name": "goal",
+                            "type": "string",
+                            "description": "用户的目标文本。",
+                            "required": true
+                        },
+                        {
+                            "name": "outline_structure",
+                            "type": "string",
+                            "description": "大纲结构。",
+                            "required": true
+                        }
+                    ],
+                    "outputs": [
+                        {
+                            "name": "practice_content",
+                            "type": "string",
+                            "description": "实践教学内容。",
+                            "required": true
+                        }
+                    ],
+                    "prompt": "### Objective\n生成实践教学内容。**关键要求：如果知识库包含案例或代码，必须将其转化为教学实验。**\n\n### Instructions\n1. 阅读目标：<input>{goal}</input>\n2. 检查大纲：<input>{outline_structure}</input>\n3. **RAG案例整合**：\n   - 检查goal中的参考资料是否包含**代码片段、操作步骤、实验案例或行业应用**。\n   - 如果有，请直接将这些素材编写进“实践操作”或“案例分析”环节。\n   - 如果资料中没有具体案例，再自行设计通用的教学案例。\n4. 生成以下内容（Markdown格式）：\n   - **教学过程设计**：导入、理论基础、实践操作（代码/实验）、案例分析、总结。\n   - **教学方法与手段**\n   - **课堂活动设计**\n5. 字数控制：实践部分应占总字数的35-40%。\n\n### Output Format\nYour final output should ALWAYS in the following format:\n\n## Thought\nBriefly explain how RAG materials (cases/code) were integrated into the practice section.\n\n## practice_content\n详细的实践教学内容，包含完整的教学过程和代码示例（如有）。"
+                }
+            ],
+            "status": "pending"
+        }
+    ],
+    "edges": [
+        {
+            "class_name": "WorkFlowEdge",
+            "source": "course_outline_design",
+            "target": "content_generation_theory",
+            "priority": 0
+        },
+        {
+            "class_name": "WorkFlowEdge",
+            "source": "course_outline_design",
+            "target": "content_generation_practice",
+            "priority": 0
+        }
+    ],
+    "graph": null
+}

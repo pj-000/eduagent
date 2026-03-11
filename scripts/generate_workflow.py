@@ -18,6 +18,7 @@ import json
 import argparse
 from datetime import datetime
 from pathlib import Path
+from typing import Any
 
 from dotenv import load_dotenv
 
@@ -218,6 +219,10 @@ def load_latest_search_result() -> tuple[str, Path]:
 def load_search_result_by_path(path: str) -> str:
     """加载指定路径的搜索结果"""
     p = Path(path)
+    if not p.is_absolute():
+        candidate = PROJECT_ROOT / p
+        if candidate.exists():
+            p = candidate
     if not p.exists():
         print(f"错误：文件不存在 {path}")
         sys.exit(1)
@@ -469,6 +474,97 @@ def save_workflow(workflow_graph, goal: str, source_file: str) -> tuple[Path, Pa
     return save_path, md_path
 
 
+def run_workflow_generation(
+    goal: str | None = None,
+    input_path: str | None = None,
+    reference_text: str | None = None,
+    reference_source: str | None = None,
+    feature: int | None = None,
+    mode: str = "auto",
+    retry: int = 3,
+    llm_config: AliyunLLMConfig | None = None,
+    save: bool = True,
+    verbose: bool = True,
+) -> dict[str, Any]:
+    """以编程方式生成工作流，供统一入口复用。"""
+    llm_config = llm_config or build_llm_config()
+    llm = build_llm(llm_config)
+
+    if goal and reference_text:
+        search_result = reference_text
+        source_file = reference_source or "in_memory_reference"
+        if verbose:
+            print("📝 正在摘要参考资料...")
+        summary = summarize_search_result(llm, search_result)
+        final_goal = f"{goal}\n\nRelevant reference findings:\n{summary}"
+    elif goal and input_path:
+        search_result = load_search_result_by_path(input_path)
+        source_file = reference_source or input_path
+        if verbose:
+            print("📝 正在摘要参考资料...")
+        summary = summarize_search_result(llm, search_result)
+        final_goal = f"{goal}\n\nRelevant reference findings:\n{summary}"
+    elif goal:
+        search_result = ""
+        source_file = "custom_goal"
+        final_goal = goal
+    elif input_path:
+        search_result = load_search_result_by_path(input_path)
+        source_file = input_path
+        if verbose:
+            print("📝 正在摘要搜索结果...")
+        summary = summarize_search_result(llm, search_result)
+        final_goal = build_goal(search_result, feature, summary=summary)
+    else:
+        search_result, source_path = load_latest_search_result()
+        source_file = str(source_path.name)
+        if verbose:
+            print("📝 正在摘要搜索结果...")
+        summary = summarize_search_result(llm, search_result)
+        final_goal = build_goal(search_result, feature, summary=summary)
+
+    if verbose:
+        print("🔧 教育功能工作流生成器启动")
+        print(f"📄 数据来源：{source_file}")
+        if feature:
+            print(f"🎯 聚焦功能点：第 {feature} 个")
+        print(f"📐 生成模式：{mode}")
+        print("-" * 60)
+
+    workflow_graph = None
+
+    if mode == "auto":
+        if verbose:
+            print("⏳ [主路径] 使用 WorkFlowGenerator 生成工作流...")
+        try:
+            workflow_graph = generate_workflow_official(llm, final_goal, retry=1)
+            if verbose:
+                print(f"  ✓ WorkFlowGenerator 成功，生成 {len(workflow_graph.nodes)} 个子任务")
+        except Exception as e:
+            if verbose:
+                print(f"  ⚠ WorkFlowGenerator 失败：{type(e).__name__}: {str(e)[:200]}")
+                print("  → 切换到回退路径 (SequentialWorkFlowGraph)...")
+
+    if workflow_graph is None:
+        if verbose:
+            print("⏳ [回退路径] 使用 SequentialWorkFlowGraph 生成工作流...")
+        workflow_graph = generate_workflow_fallback(llm, final_goal, retry=retry)
+
+    json_path = None
+    md_path = None
+    if save:
+        json_path, md_path = save_workflow(workflow_graph, final_goal, source_file)
+
+    return {
+        "workflow_graph": workflow_graph,
+        "goal": final_goal,
+        "source_file": source_file,
+        "search_result": search_result,
+        "json_path": json_path,
+        "md_path": md_path,
+    }
+
+
 def main():
     parser = argparse.ArgumentParser(
         description="教育功能工作流生成器 — 基于 EvoAgentX 官方 API",
@@ -514,55 +610,19 @@ def main():
     )
     args = parser.parse_args()
 
-    # 构建 LLM
-    llm_config = build_llm_config()
-    llm = build_llm(llm_config)
-
-    # 加载搜索结果并构建 goal
-    if args.goal:
-        search_result = ""
-        source_file = "custom_goal"
-        goal = args.goal
-    elif args.input:
-        search_result = load_search_result_by_path(args.input)
-        source_file = args.input
-        print("📝 正在摘要搜索结果...")
-        summary = summarize_search_result(llm, search_result)
-        goal = build_goal(search_result, args.feature, summary=summary)
-    else:
-        search_result, source_path = load_latest_search_result()
-        source_file = str(source_path.name)
-        print("📝 正在摘要搜索结果...")
-        summary = summarize_search_result(llm, search_result)
-        goal = build_goal(search_result, args.feature, summary=summary)
-
-    # 生成工作流
-    print("🔧 教育功能工作流生成器启动")
-    print(f"📄 数据来源：{source_file}")
-    if args.feature:
-        print(f"🎯 聚焦功能点：第 {args.feature} 个")
-    print(f"📐 生成模式：{args.mode}")
-    print("-" * 60)
-
-    workflow_graph = None
-
-    if args.mode == "auto":
-        # 主路径：官方 WorkFlowGenerator（retry=1 快速失败，避免长时间等待）
-        print("⏳ [主路径] 使用 WorkFlowGenerator 生成工作流...")
-        try:
-            workflow_graph = generate_workflow_official(llm, goal, retry=1)
-            print(f"  ✓ WorkFlowGenerator 成功，生成 {len(workflow_graph.nodes)} 个子任务")
-        except Exception as e:
-            print(f"  ⚠ WorkFlowGenerator 失败：{type(e).__name__}: {str(e)[:200]}")
-            print("  → 切换到回退路径 (SequentialWorkFlowGraph)...")
-
-    if workflow_graph is None:
-        # 回退路径：SequentialWorkFlowGraph
-        print("⏳ [回退路径] 使用 SequentialWorkFlowGraph 生成工作流...")
-        workflow_graph = generate_workflow_fallback(llm, goal, retry=args.retry)
-
-    # 保存工作流
-    json_path, md_path = save_workflow(workflow_graph, goal, source_file)
+    result_bundle = run_workflow_generation(
+        goal=args.goal,
+        input_path=args.input,
+        feature=args.feature,
+        mode=args.mode,
+        retry=args.retry,
+        llm_config=build_llm_config(),
+        save=True,
+        verbose=True,
+    )
+    workflow_graph = result_bundle["workflow_graph"]
+    json_path = result_bundle["json_path"]
+    md_path = result_bundle["md_path"]
 
     print("\n✅ 工作流生成完成！")
     print(f"📋 JSON 工作流：{json_path}")

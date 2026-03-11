@@ -18,6 +18,7 @@ Workflow:
    - task state
    - workflow files
    - final execution result or direct generation artifacts
-7. For planner runs, parse `analysis`, `selected_route`, `attempts`, and final `result`.
+7. For planner runs, parse `analysis`, `selected_route`, `attempts`, `review` (when present), and final `result`.
 8. If the user explicitly asks to bypass the planner, say so briefly and then use the requested lower-level entrypoint.
 9. If the pipeline fails, inspect the latest `data/task_runs/task_state_*.json` and report the failing stage before answering.
+10. Workflow runs do not use the new reviewer yet.

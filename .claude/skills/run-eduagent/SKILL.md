@@ -34,9 +34,11 @@ python scripts/run_planner.py --task "<user task>" --planner-mode hybrid --plann
 
 Always report:
 - planner analysis and selected route when you used `run_planner.py`
+- review status and review artifact path for direct capability runs
 - framework notes path in `data/framework_notes/`
 - task state path in `data/task_runs/`
 - workflow path in `workflows/`
 - final result path in `results/`
 
 If execution fails, inspect the latest `task_state_*.json` and identify the failed stage before responding.
+Workflow runs do not use the new reviewer yet.

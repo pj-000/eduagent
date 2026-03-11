@@ -111,6 +111,12 @@ def print_human(payload: dict[str, Any]) -> None:
         print(f"产物：{json.dumps(result.get('artifacts', {}), ensure_ascii=False)}")
         if result.get("preview"):
             print(f"摘要：{result['preview']}")
+        review = payload.get("review")
+        if review:
+            print(f"评审：{review.get('review_status')}")
+            print(f"规则分：{review.get('rule_review', {}).get('score')}")
+            print(f"LLM分：{review.get('llm_review', {}).get('overall_score')}")
+            print(f"评审记录：{review.get('review_artifact_path')}")
 
 
 def main() -> int:

@@ -4,11 +4,11 @@
 
 教育垂类智能体，基于 [EvoAgentX](https://github.com/EvoAgentX/EvoAgentX) 构建。
 
-当前主链路已经具备四个阶段：
-1. **官方框架资料检索**：先查 EvoAgentX 官方 GitHub / 官方文档
-2. **教育创新搜索**：联网搜索教育场景创新点
-3. **工作流生成**：生成 EvoAgentX workflow
-4. **工作流执行**：执行 workflow 并输出结果
+当前主链路默认通过 `run_planner.py` 驱动：
+1. **任务分析与路由**：先判断走 direct capability 还是 workflow
+2. **direct capability 路线**：执行生成 -> 规则 review -> LLM review -> 最多一次自动纠偏
+3. **workflow 路线**：官方框架资料检索 -> 教育创新搜索 -> workflow 生成 -> workflow 执行
+4. **结果落盘**：保存 artifacts、review artifacts、task state 等文件
 
 此外，项目还增加了一个**教案专用本地入口**：
 - `python scripts/run_lesson_plan.py`
@@ -66,22 +66,20 @@ DASHSCOPE_API_KEY=你的_key
 最推荐：
 
 ```bash
-python scripts/run_agent.py --task "设计一个强化学习教案设计与评估工作流"
+python scripts/run_planner.py --task "帮我生成一份高中数学教案" --set course=高中数学 --set lessons=分数加减法
 ```
 
 可选参数：
 
 ```bash
-python scripts/run_agent.py --task "围绕教师 copilot 自由探索教育创新方向" --focus free
-python scripts/run_agent.py --task "探索 AI 助教在数学课堂中的创新应用并给出落地方案" --focus interaction
+python scripts/run_planner.py --task "先调研再生成一份强化学习教案" --set course=大模型 --set units=强化学习基础
+python scripts/run_planner.py --task "探索 AI 助教在数学课堂中的创新应用并给出 workflow" --planner-mode hybrid --json
 python scripts/run_agent.py --task "调研课堂 XR 与特殊教育辅助技术" --theme "课堂 XR" --theme "特殊教育辅助技术"
-python scripts/run_agent.py --task "设计一个分数运算分层练习生成流程" --skip-search --mode sequential
-python scripts/run_agent.py --task "..." --skip-framework-research
 ```
 
 ### 2. Claude Code 自然语言入口
 
-在 Claude Code 中，优先让它走统一入口，而不是手动拆三步。
+在 Claude Code 中，优先让它走统一 planner 入口，而不是手动拆三步。
 
 推荐直接说：
 
@@ -263,7 +261,7 @@ python scripts/run_ppt.py --course "<课程>" --units "<单元>" --lessons "<课
 ### `run-eduagent`
 
 - 适合：用户直接给出自然语言教育任务
-- 默认动作：运行 `python scripts/run_agent.py --task "..."`
+- 默认动作：运行 `python scripts/run_planner.py --task "..." --planner-mode hybrid --planner-model QWen --json`
 - 可选补充：`--focus free` 或重复 `--theme`
 
 ### `generate-lesson-plan`
@@ -309,7 +307,9 @@ python scripts/run_ppt.py --course "<课程>" --units "<单元>" --lessons "<课
 ### `eduagent-orchestrator`
 
 - 负责端到端任务
-- 优先走 `scripts/run_agent.py`
+- 优先走 `scripts/run_planner.py`
+- direct capability 成功后会自动执行规则 review 和 LLM review
+- workflow 路线暂不接 reviewer
 
 ### `edu-researcher`
 
@@ -421,7 +421,7 @@ python scripts/run_ppt.py --course "<课程>" --units "<单元>" --lessons "<课
 ### 统一入口
 
 ```bash
-python scripts/run_agent.py --task "<任务>"
+python scripts/run_planner.py --task "<任务>" --planner-mode hybrid --planner-model QWen
 ```
 
 ### 官方资料检索
@@ -532,7 +532,7 @@ eduagent/
 ## 后续迭代建议
 
 - 加历史结果检索与复用逻辑
-- 加 reviewer / evaluator 闭环
-- 加失败后的局部重试与回退
+- workflow 分支接 reviewer / EvoAgentX 自进化闭环
+- 加失败后的局部重试与重规划
 - 加长期记忆与用户画像
 - 加真正可执行的项目级 MCP 配置

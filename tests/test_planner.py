@@ -75,13 +75,21 @@ class PlannerTests(unittest.TestCase):
         self.assertEqual(analysis.analysis_source, "llm")
         self.assertEqual(analysis.recommended_route, "workflow")
 
+    @patch("eduagent_core.planner.review_capability_result")
     @patch("eduagent_core.planner.dispatch_capability")
-    def test_execute_plan_uses_direct_capability_for_generation(self, dispatch_mock) -> None:
+    def test_execute_plan_uses_direct_capability_for_generation(self, dispatch_mock, review_mock) -> None:
         dispatch_mock.return_value = {
             "status": "success",
             "capability": "lesson_plan",
+            "request": {"course": "高中数学", "lessons": "分数加减法"},
             "artifacts": {"lesson_plan_path": "/tmp/lesson.md"},
             "preview": "preview",
+        }
+        review_mock.return_value = {
+            "review_status": "pass",
+            "review_artifact_path": "/tmp/review.json",
+            "rule_review": {"score": 95},
+            "llm_review": {"overall_score": 88},
         }
 
         result = execute_plan(
@@ -92,6 +100,7 @@ class PlannerTests(unittest.TestCase):
         self.assertEqual(result["status"], "success")
         self.assertEqual(result["selected_route"], "capability")
         dispatch_mock.assert_called_once()
+        self.assertEqual(result["review"]["review_status"], "pass")
 
     @patch("eduagent_core.planner.run_workflow_pipeline")
     def test_execute_plan_falls_back_to_sequential_workflow(self, workflow_mock) -> None:
@@ -136,6 +145,110 @@ class PlannerTests(unittest.TestCase):
 
         self.assertEqual(result["status"], "error")
         self.assertEqual(len(result["attempts"]), 1)
+
+    @patch("eduagent_core.planner.review_capability_result")
+    @patch("eduagent_core.planner.dispatch_capability")
+    def test_execute_plan_retries_once_when_review_fails(self, dispatch_mock, review_mock) -> None:
+        dispatch_mock.side_effect = [
+            {
+                "status": "success",
+                "capability": "lesson_plan",
+                "request": {"course": "高中数学", "lessons": "分数加减法", "model_type": "QWen"},
+                "artifacts": {"lesson_plan_path": "/tmp/lesson.md"},
+            },
+            {
+                "status": "success",
+                "capability": "lesson_plan",
+                "request": {"course": "高中数学", "lessons": "分数加减法", "model_type": "DeepSeek"},
+                "artifacts": {"lesson_plan_path": "/tmp/lesson_v2.md"},
+            },
+        ]
+        review_mock.side_effect = [
+            {
+                "review_status": "fail",
+                "retry_hint": "请补充教学目标与教学过程，并提升表达清晰度。",
+                "review_artifact_path": "/tmp/review_1.json",
+                "rule_review": {"score": 40},
+                "llm_review": {"overall_score": 55},
+            },
+            {
+                "review_status": "pass",
+                "retry_hint": "done",
+                "review_artifact_path": "/tmp/review_2.json",
+                "rule_review": {"score": 90},
+                "llm_review": {"overall_score": 86},
+            },
+        ]
+
+        result = execute_plan(
+            task="帮我生成一份高中数学教案",
+            payload={"course": "高中数学", "lessons": "分数加减法"},
+            planner_mode="rule",
+        )
+
+        self.assertEqual(result["status"], "success")
+        self.assertEqual(len(result["attempts"]), 2)
+        self.assertEqual(result["attempts"][0]["review_status"], "fail")
+        second_payload = dispatch_mock.call_args_list[1].kwargs["payload"]
+        self.assertEqual(second_payload["model_type"], "DeepSeek")
+        self.assertIn("教学目标", second_payload["constraint"])
+
+    @patch("eduagent_core.planner.review_capability_result")
+    @patch("eduagent_core.planner.dispatch_capability")
+    def test_execute_plan_preserves_explicit_model_type_on_review_retry(self, dispatch_mock, review_mock) -> None:
+        dispatch_mock.side_effect = [
+            {
+                "status": "success",
+                "capability": "lesson_plan",
+                "request": {"course": "高中数学", "lessons": "分数加减法", "model_type": "QWen"},
+                "artifacts": {"lesson_plan_path": "/tmp/lesson.md"},
+            },
+            {
+                "status": "success",
+                "capability": "lesson_plan",
+                "request": {"course": "高中数学", "lessons": "分数加减法", "model_type": "QWen"},
+                "artifacts": {"lesson_plan_path": "/tmp/lesson_v2.md"},
+            },
+        ]
+        review_mock.side_effect = [
+            {
+                "review_status": "fail",
+                "retry_hint": "请补充教学目标与教学过程，并提升表达清晰度。",
+                "review_artifact_path": "/tmp/review_1.json",
+                "rule_review": {"score": 40},
+                "llm_review": {"overall_score": 55},
+            },
+            {
+                "review_status": "pass",
+                "retry_hint": "done",
+                "review_artifact_path": "/tmp/review_2.json",
+                "rule_review": {"score": 90},
+                "llm_review": {"overall_score": 86},
+            },
+        ]
+
+        execute_plan(
+            task="帮我生成一份高中数学教案",
+            payload={"course": "高中数学", "lessons": "分数加减法", "model_type": "QWen"},
+            planner_mode="rule",
+        )
+
+        second_payload = dispatch_mock.call_args_list[1].kwargs["payload"]
+        self.assertEqual(second_payload["model_type"], "QWen")
+
+    @patch("eduagent_core.planner.review_capability_result")
+    @patch("eduagent_core.planner.run_workflow_pipeline")
+    def test_execute_plan_workflow_route_does_not_trigger_review(self, workflow_mock, review_mock) -> None:
+        workflow_mock.return_value = {
+            "status": "success",
+            "route": "workflow",
+            "artifacts": {"result_path": "/tmp/result.md"},
+        }
+
+        result = execute_plan(task="探索 AI 助教并给出 workflow", payload={}, planner_mode="rule")
+
+        self.assertEqual(result["status"], "success")
+        review_mock.assert_not_called()
 
 
 if __name__ == "__main__":

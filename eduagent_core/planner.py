@@ -7,6 +7,7 @@ from typing import Any
 
 from .capability_registry import CAPABILITY_SPECS, dispatch_capability, resolve_capability
 from .llm_planner import PlannerLLMError, analyze_task_with_llm
+from .reviewer import review_capability_result
 from .workflow_runner import run_workflow_pipeline
 
 
@@ -371,6 +372,70 @@ def _run_attempt(task: str, payload: dict[str, Any], attempt: PlannerAttempt) ->
     return capability_result
 
 
+def _build_history_entry(
+    *,
+    index: int,
+    attempt: PlannerAttempt,
+    result: dict[str, Any],
+    review: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    entry = {
+        "index": index,
+        "route": result.get("route", attempt.route),
+        "status": result.get("status"),
+        "reason": attempt.reason,
+        "capability": attempt.capability,
+        "mode": attempt.mode,
+        "error_type": result.get("error_type"),
+        "message": result.get("message"),
+        "review_status": None,
+        "review_artifact_path": None,
+        "rule_review_score": None,
+        "llm_review_score": None,
+    }
+    if review:
+        entry["review_status"] = review.get("review_status")
+        entry["review_artifact_path"] = review.get("review_artifact_path")
+        entry["rule_review_score"] = review.get("rule_review", {}).get("score")
+        entry["llm_review_score"] = review.get("llm_review", {}).get("overall_score")
+        if review.get("review_status") == "fail":
+            entry["status"] = "review_failed"
+            entry["message"] = review.get("retry_hint")
+    return entry
+
+
+def _should_switch_model_for_review_retry(raw_payload: dict[str, Any], attempt: PlannerAttempt) -> bool:
+    if "model_type" in raw_payload:
+        return False
+    return "model_type" not in (attempt.payload_overrides or {})
+
+
+def _build_quality_retry_attempt(
+    attempt: PlannerAttempt,
+    payload: dict[str, Any],
+    review: dict[str, Any],
+) -> PlannerAttempt:
+    merged_constraint_parts: list[str] = []
+    existing_constraint = str(payload.get("constraint", "") or "").strip()
+    if existing_constraint:
+        merged_constraint_parts.append(existing_constraint)
+    retry_hint = str(review.get("retry_hint", "") or "").strip()
+    if retry_hint:
+        merged_constraint_parts.append(retry_hint)
+
+    payload_overrides = dict(attempt.payload_overrides or {})
+    payload_overrides["constraint"] = "\n".join(merged_constraint_parts).strip()
+    if _should_switch_model_for_review_retry(payload, attempt):
+        payload_overrides["model_type"] = "DeepSeek"
+
+    return PlannerAttempt(
+        route="capability",
+        capability=attempt.capability,
+        reason="review_failed_then_retry_capability_with_refined_constraint",
+        payload_overrides=payload_overrides,
+    )
+
+
 def execute_plan(
     *,
     task: str,
@@ -414,19 +479,66 @@ def execute_plan(
     history: list[dict[str, Any]] = []
     for index, attempt in enumerate(attempts):
         result = _run_attempt(task, raw_payload, attempt)
-        history.append(
-            {
-                "index": index,
-                "route": result.get("route", attempt.route),
-                "status": result.get("status"),
-                "reason": attempt.reason,
-                "capability": attempt.capability,
-                "mode": attempt.mode,
-                "error_type": result.get("error_type"),
-                "message": result.get("message"),
-            }
-        )
+        review: dict[str, Any] | None = None
         if result.get("status") == "success":
+            if result.get("route") == "capability":
+                review = review_capability_result(
+                    result.get("capability") or attempt.capability or "",
+                    result.get("request") or raw_payload,
+                    result,
+                )
+                history.append(_build_history_entry(index=index, attempt=attempt, result=result, review=review))
+                if review.get("review_status") == "pass":
+                    return {
+                        "status": "success",
+                        "analysis": analysis.to_dict(),
+                        "selected_route": result.get("route", attempt.route),
+                        "result": result,
+                        "review": review,
+                        "attempts": history,
+                    }
+
+                retry_attempt = _build_quality_retry_attempt(attempt, raw_payload, review)
+                retry_result = _run_attempt(task, raw_payload, retry_attempt)
+                retry_review: dict[str, Any] | None = None
+                if retry_result.get("status") == "success":
+                    retry_review = review_capability_result(
+                        retry_result.get("capability") or retry_attempt.capability or "",
+                        retry_result.get("request") or raw_payload,
+                        retry_result,
+                    )
+                history.append(
+                    _build_history_entry(
+                        index=index + 1,
+                        attempt=retry_attempt,
+                        result=retry_result,
+                        review=retry_review,
+                    )
+                )
+                if retry_result.get("status") == "success" and retry_review and retry_review.get("review_status") == "pass":
+                    return {
+                        "status": "success",
+                        "analysis": analysis.to_dict(),
+                        "selected_route": retry_result.get("route", retry_attempt.route),
+                        "result": retry_result,
+                        "review": retry_review,
+                        "attempts": history,
+                    }
+                failure_message = (
+                    retry_review.get("retry_hint")
+                    if retry_review
+                    else retry_result.get("message") or review.get("retry_hint")
+                )
+                return {
+                    "status": "error",
+                    "analysis": analysis.to_dict(),
+                    "selected_route": attempt.route,
+                    "attempts": history,
+                    "message": failure_message or "planner_quality_review_failed",
+                    "review": retry_review or review,
+                }
+
+            history.append(_build_history_entry(index=index, attempt=attempt, result=result))
             return {
                 "status": "success",
                 "analysis": analysis.to_dict(),
@@ -434,6 +546,7 @@ def execute_plan(
                 "result": result,
                 "attempts": history,
             }
+        history.append(_build_history_entry(index=index, attempt=attempt, result=result))
         if result.get("error_type") == "validation_error":
             break
 

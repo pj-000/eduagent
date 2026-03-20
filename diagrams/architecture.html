@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<title>EduAgent 系统架构图</title>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<style>
+  body { font-family: "PingFang SC", "Microsoft YaHei", sans-serif; background: #f8f9fa; margin: 0; padding: 30px; }
+  h1 { text-align: center; color: #2c3e50; font-size: 22px; margin-bottom: 6px; }
+  .subtitle { text-align: center; color: #7f8c8d; font-size: 13px; margin-bottom: 30px; }
+  .card { background: white; border-radius: 12px; box-shadow: 0 2px 12px rgba(0,0,0,0.08); padding: 30px; max-width: 1000px; margin: 0 auto 30px; }
+  .card h2 { color: #34495e; font-size: 16px; margin: 0 0 20px; padding-bottom: 10px; border-bottom: 2px solid #3498db; }
+  .mermaid { text-align: center; }
+</style>
+</head>
+<body>
+<h1>EduAgent — 教育多智能体能力创造系统</h1>
+<p class="subtitle">系统架构总览</p>
+
+<div class="card">
+<h2>① 三层架构总览</h2>
+<div class="mermaid">
+graph TB
+    subgraph Interface["🖥️  Interface Layer（接口层）"]
+        CLI["CLI<br/>run / inspect / replay<br/>artifacts / purge"]
+        API["FastAPI<br/>POST /runs<br/>GET /runs/{id}/events (SSE)<br/>GET /artifacts<br/>POST /replay/{scenario}"]
+    end
+
+    subgraph Service["⚙️  Service Layer（服务层）"]
+        RS["RunService<br/>创建 & 异步执行 Run"]
+        AS["ArtifactService<br/>查询 Artifact 详情"]
+        RPS["ReplayService<br/>3 个标准场景回放"]
+    end
+
+    subgraph Core["🧠  Core Runtime（核心运行时）"]
+        SCH["Scheduler<br/>外层 baton 调度"]
+        AR["AgentRunner<br/>内层 tool-loop"]
+        EX["ActionExecutor<br/>Action 执行 + 评估集成"]
+        SB["Sandbox<br/>受限 Python 执行"]
+        EVT["EventSink<br/>统一事件总线"]
+        REG["ArtifactRegistry<br/>原子写 + 版本管理"]
+    end
+
+    subgraph Agents["🤖  Agents（纯决策函数）"]
+        PL["Planner<br/>qwen3.5-plus"]
+        BU["Builder<br/>kimi-k2.5"]
+        RV["Reviewer<br/>glm-5"]
+        US["UserSimulator<br/>MiniMax-M2.5"]
+    end
+
+    CLI --> RS
+    API --> RS
+    API --> AS
+    API --> RPS
+    RS --> SCH
+    SCH --> AR
+    AR --> EX
+    EX --> SB
+    EX --> REG
+    AR --> EVT
+    AR --> PL
+    AR --> BU
+    AR --> RV
+    AR --> US
+
+    style Interface fill:#dbeafe,stroke:#3b82f6,color:#1e3a5f
+    style Service fill:#dcfce7,stroke:#22c55e,color:#14532d
+    style Core fill:#fef9c3,stroke:#eab308,color:#713f12
+    style Agents fill:#fce7f3,stroke:#ec4899,color:#831843
+</div>
+</div>
+
+<div class="card">
+<h2>② 两层循环结构</h2>
+<div class="mermaid">
+graph LR
+    subgraph Outer["外层 Scheduler Loop（最多 20 轮）"]
+        S1["选择当前 Agent"] --> S2["run_turn()"]
+        S2 --> S3{"终止条件？<br/>final_answer / max_rounds"}
+        S3 -- 否 --> S1
+        S3 -- 是 --> S4["Run 完成"]
+    end
+
+    subgraph Inner["内层 AgentRunner Tool-Loop（每轮最多 5 步）"]
+        A1["build_context()"] --> A2["decide_next_action()<br/>调用 LLM"]
+        A2 --> A3["execute(action)<br/>ActionExecutor"]
+        A3 --> A4["update_state()"]
+        A4 --> A5{"end_turn?<br/>handoff/final/draft创建"}
+        A5 -- 继续 --> A1
+        A5 -- 结束 --> A6["返回 results"]
+    end
+
+    S2 --> A1
+    A6 --> S3
+
+    style Outer fill:#eff6ff,stroke:#3b82f6
+    style Inner fill:#fdf4ff,stroke:#a855f7
+</div>
+</div>
+
+<div class="card">
+<h2>③ 统一事件流（EventSink）</h2>
+<div class="mermaid">
+graph LR
+    RT["Runtime<br/>AgentRunner"] -->|emit| ES["EventSink<br/>单一写入者"]
+    ES -->|append| JSONL["runs/{run_id}/events.jsonl<br/>持久化日志"]
+    ES -->|push| SSE["SSE 订阅者<br/>FastAPI /events"]
+    ES -->|display| CLI2["Rich CLI<br/>实时输出"]
+
+    subgraph EventTypes["13 种事件类型"]
+        E1["run_started / run_completed / run_failed"]
+        E2["agent_turn_started / agent_turn_ended"]
+        E3["action_created / action_result"]
+        E4["artifact_created / artifact_updated"]
+        E5["evaluation_completed"]
+        E6["agent_handoff"]
+        E7["skill_injected"]
+        E8["message_created"]
+    end
+
+    style ES fill:#fef3c7,stroke:#f59e0b
+    style EventTypes fill:#f0fdf4,stroke:#86efac
+</div>
+</div>
+
+</body>
+</html>

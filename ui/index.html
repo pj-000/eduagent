@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EduAgent</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;background:#161616;color:#e0e0e0;height:100vh;display:flex;flex-direction:column;overflow:hidden}
+.topbar{height:46px;background:#1f1f1f;border-bottom:1px solid #2a2a2a;display:flex;align-items:center;padding:0 18px;gap:14px;flex-shrink:0}
+.logo{font-size:15px;font-weight:700;color:#fff}.sep{color:#3a3a3a}.sub{font-size:12px;color:#666}
+.pill{margin-left:auto;display:flex;align-items:center;gap:6px;font-size:12px;color:#666}
+.dot{width:7px;height:7px;border-radius:50%;background:#333}
+.dot.run{background:#3b82f6;animation:bl 1s infinite}.dot.ok{background:#22c55e}.dot.err{background:#ef4444}
+@keyframes bl{0%,100%{opacity:1}50%{opacity:.3}}
+.body{flex:1;display:flex;overflow:hidden}
+
+/* LEFT */
+.left{width:210px;flex-shrink:0;background:#1a1a1a;border-right:1px solid #252525;display:flex;flex-direction:column;overflow-y:auto;padding:14px 10px;gap:5px}
+.sec{font-size:10px;font-weight:600;color:#444;text-transform:uppercase;letter-spacing:1px;padding:0 4px;margin:6px 0 4px}
+.acard{border-radius:8px;padding:9px 11px;background:#222;border:1.5px solid #2a2a2a;transition:all .2s}
+.acard.on{border-color:var(--c);background:color-mix(in srgb,var(--c) 10%,#222)}
+.aname{font-size:12px;font-weight:600;color:#888;display:flex;align-items:center;gap:6px}
+.acard.on .aname{color:var(--c)}
+.amodel{font-size:10px;color:#3a3a3a;margin-top:2px}
+.ast{font-size:11px;color:#3a3a3a;margin-top:3px;min-height:14px}
+.acard.on .ast{color:#777}
+.ind{width:6px;height:6px;border-radius:50%;background:#2a2a2a;flex-shrink:0}
+.acard.on .ind{background:var(--c);animation:bl 1s infinite}
+.div{height:1px;background:#252525;margin:6px 0}
+.art{border-radius:6px;padding:7px 9px;background:#1e1e1e;border:1px solid #252525;margin-bottom:4px}
+.art-n{font-size:11px;color:#bbb;font-weight:500;word-break:break-all}
+.art-b{display:inline-block;font-size:10px;padding:1px 6px;border-radius:3px;margin-top:3px;font-weight:600}
+.bd{background:#1a2540;color:#60a5fa}.ba{background:#0f2a18;color:#4ade80}.br{background:#2a1010;color:#f87171}
+.no-art{font-size:11px;color:#3a3a3a;padding:4px}
+
+/* CENTER */
+.center{flex:1;display:flex;flex-direction:column;overflow:hidden}
+.feed{flex:1;overflow-y:auto;padding:16px 20px;display:flex;flex-direction:column;gap:1px}
+.feed::-webkit-scrollbar{width:4px}.feed::-webkit-scrollbar-thumb{background:#2a2a2a;border-radius:2px}
+.empty{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#333;gap:10px;text-align:center}
+.ei{font-size:44px}.et{font-size:13px;line-height:1.7;color:#3a3a3a}
+
+.msg{display:flex;gap:9px;padding:5px 0;animation:fu .15s ease}
+@keyframes fu{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:none}}
+.av{width:26px;height:26px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:13px;flex-shrink:0;margin-top:1px}
+.mr{flex:1;min-width:0}
+.mh{display:flex;align-items:baseline;gap:7px;margin-bottom:3px}
+.mn{font-size:12px;font-weight:600}.mt{font-size:10px;color:#444}
+.mb{font-size:13px;line-height:1.65;color:#bbb;word-break:break-word}
+
+/* blocks */
+.blk{margin-top:5px;border-radius:6px;padding:9px 11px;font-size:12px;line-height:1.6}
+.blk-tool{background:#111d2e;border:1px solid #1e3050}
+.blk-code{background:#0d0d0d;border:1px solid #1e1e1e;font-family:"SF Mono",monospace;font-size:11px;white-space:pre-wrap;max-height:180px;overflow-y:auto;color:#7ec8a0;padding:10px 12px;border-radius:6px;margin-top:5px}
+.blk-review{border:1px solid #2a2a2a;background:#1c1c1c}
+.blk-answer{background:#0a1f0f;border:1px solid #1a4020;color:#86efac}
+.blk-handoff{background:#1a1500;border:1px solid #3a2e00}
+.blk-artifact{background:#160f2a;border:1px solid #2a1a50}
+.blk-msg{background:#1a1a1a;border:1px solid #252525}
+.blk-result{background:#0d1a0d;border:1px solid #1a3020}
+.bl{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px;opacity:.6}
+.scores{display:flex;gap:6px;flex-wrap:wrap;margin-top:5px}
+.sc{font-size:10px;padding:2px 7px;border-radius:3px;background:#252525;color:#777}
+.sc.hi{background:#0f2a18;color:#4ade80}.sc.lo{background:#2a1010;color:#f87171}
+.verdict{font-size:13px;font-weight:700;margin-bottom:4px}
+.verdict.pass{color:#4ade80}.verdict.fail{color:#f87171}
+.kv{display:flex;gap:6px;margin-top:3px;font-size:11px}
+.kv .k{color:#555;flex-shrink:0}.kv .v{color:#aaa;word-break:break-all}
+
+.rsep{display:flex;align-items:center;gap:8px;margin:10px 0 6px;color:#333;font-size:11px;font-weight:500}
+.rsep::before,.rsep::after{content:'';flex:1;height:1px;background:#222}
+.sys{text-align:center;font-size:11px;color:#3a3a3a;padding:3px 0}
+
+/* INPUT */
+.ibar{border-top:1px solid #252525;padding:12px 16px;background:#1a1a1a;display:flex;flex-direction:column;gap:8px}
+.exs{display:flex;gap:5px;flex-wrap:wrap}
+.ex{font-size:11px;padding:3px 9px;background:#1e1e1e;border:1px solid #2a2a2a;border-radius:5px;color:#666;cursor:pointer;font-family:inherit;transition:all .15s}
+.ex:hover{border-color:#3b82f6;color:#ccc}
+.irow{display:flex;gap:8px;align-items:flex-end}
+.iw{flex:1;background:#1e1e1e;border:1px solid #2a2a2a;border-radius:9px;padding:9px 13px;transition:border-color .2s}
+.iw:focus-within{border-color:#3b82f6}
+.iw textarea{width:100%;background:transparent;border:none;outline:none;color:#e0e0e0;font-size:13px;font-family:inherit;resize:none;line-height:1.5;max-height:100px;min-height:20px}
+.iw textarea::placeholder{color:#444}
+.sb{width:36px;height:36px;background:#2563eb;border:none;border-radius:7px;color:#fff;font-size:15px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:background .2s}
+.sb:hover{background:#1d4ed8}.sb:disabled{background:#1a2540;color:#2a4070;cursor:not-allowed}
+
+/* RIGHT */
+.right{width:260px;flex-shrink:0;background:#1a1a1a;border-left:1px solid #252525;display:flex;flex-direction:column;padding:14px 12px;gap:10px;overflow-y:auto}
+.stats{display:flex;gap:6px}
+.sbox{flex:1;background:#1e1e1e;border:1px solid #252525;border-radius:7px;padding:9px;text-align:center}
+.sv{font-size:22px;font-weight:700;color:#e0e0e0}.sl{font-size:10px;color:#444;margin-top:1px}
+.ans{background:#0a1f0f;border:1px solid #1a4020;border-radius:8px;padding:12px;font-size:12px;color:#86efac;line-height:1.7;white-space:pre-wrap;word-break:break-word;display:none}
+.ans.show{display:block}
+.no-ans{font-size:12px;color:#333;text-align:center;padding:16px 0}
+</style>
+</head>
+<body>
+<div class="topbar">
+  <span class="logo">🎓 EduAgent</span><span class="sep">|</span>
+  <span class="sub">教育多智能体能力创造系统</span>
+  <div class="pill"><div class="dot" id="dot"></div><span id="stxt">就绪</span></div>
+</div>
+<div class="body">
+
+<div class="left">
+  <div class="sec">智能体</div>
+  <div class="acard" id="ac-planner" style="--c:#3b82f6">
+    <div class="aname"><div class="ind"></div>🧭 规划者</div>
+    <div class="amodel">qwen3.5-plus</div><div class="ast" id="as-planner">待机</div>
+  </div>
+  <div class="acard" id="ac-builder" style="--c:#22c55e">
+    <div class="aname"><div class="ind"></div>🔨 构建者</div>
+    <div class="amodel">kimi-k2.5</div><div class="ast" id="as-builder">待机</div>
+  </div>
+  <div class="acard" id="ac-reviewer" style="--c:#ec4899">
+    <div class="aname"><div class="ind"></div>🔍 审核者</div>
+    <div class="amodel">glm-5</div><div class="ast" id="as-reviewer">待机</div>
+  </div>
+  <div class="acard" id="ac-user_simulator" style="--c:#f59e0b">
+    <div class="aname"><div class="ind"></div>👤 用户模拟器</div>
+    <div class="amodel">MiniMax-M2.5</div><div class="ast" id="as-user_simulator">待机</div>
+  </div>
+  <div class="div"></div>
+  <div class="sec">能力制品</div>
+  <div id="artList"><div class="no-art">暂无制品</div></div>
+</div>
+
+<div class="center">
+  <div class="feed" id="feed">
+    <div class="empty" id="empty">
+      <div class="ei">🤖</div>
+      <div class="et">输入教育任务，观察四个 Agent 如何协作<br>创建工具 → 互相审核 → 激活 → 使用</div>
+    </div>
+  </div>
+  <div class="ibar">
+    <div class="exs">
+      <button class="ex" onclick="set('帮我生成 10 道适合三年级学生的加减法练习题')">📐 数学练习题</button>
+      <button class="ex" onclick="set('帮我创建一个可以生成英语单词填空练习题的工具')">🔧 创建新工具</button>
+      <button class="ex" onclick="set('帮我把这段课文改写成适合小学生理解的版本：光合作用是植物利用阳光将二氧化碳和水转化为葡萄糖和氧气的过程。')">📝 课文简化</button>
+    </div>
+    <div class="irow">
+      <div class="iw">
+        <textarea id="ti" rows="1" placeholder="输入教育任务，Enter 发送..."
+          onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();go()}"
+          oninput="this.style.height='auto';this.style.height=this.scrollHeight+'px'"></textarea>
+      </div>
+      <button class="sb" id="sb" onclick="go()">▶</button>
+    </div>
+  </div>
+</div>
+
+<div class="right">
+  <div class="sec">运行统计</div>
+  <div class="stats">
+    <div class="sbox"><div class="sv" id="sr">—</div><div class="sl">轮次</div></div>
+    <div class="sbox"><div class="sv" id="sa">—</div><div class="sl">动作</div></div>
+  </div>
+  <div class="div"></div>
+  <div class="sec">最终结果</div>
+  <div class="no-ans" id="nans">任务完成后显示</div>
+  <div class="ans" id="ans"></div>
+</div>
+</div>
+
+<script>
+const AG={
+  planner:{n:'规划者',i:'🧭',c:'#3b82f6'},
+  builder:{n:'构建者',i:'🔨',c:'#22c55e'},
+  reviewer:{n:'审核者',i:'🔍',c:'#ec4899'},
+  user_simulator:{n:'用户模拟器',i:'👤',c:'#f59e0b'}
+};
+let acts=0,round=0,lastRound=-1,arts={},es=null;
+
+function set(t){const e=document.getElementById('ti');e.value=t;e.style.height='auto';e.style.height=e.scrollHeight+'px';e.focus()}
+function dot(s,t){document.getElementById('dot').className='dot '+s;document.getElementById('stxt').textContent=t}
+function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
+function now(){return new Date().toLocaleTimeString('zh',{hour:'2-digit',minute:'2-digit',second:'2-digit'})}
+
+function setActive(id){
+  Object.keys(AG).forEach(k=>{
+    document.getElementById('ac-'+k)?.classList.remove('on');
+    document.getElementById('as-'+k).textContent='待机';
+  });
+  if(id&&AG[id]){
+    document.getElementById('ac-'+id)?.classList.add('on');
+    document.getElementById('as-'+id).textContent='思考中...';
+  }
+}
+
+function scroll(){const f=document.getElementById('feed');f.scrollTop=f.scrollHeight}
+
+function addSep(r,aid){
+  const a=AG[aid]||{};
+  const d=document.createElement('div');d.className='rsep';
+  d.textContent=`第 ${r} 轮  ·  ${a.i||''} ${a.n||aid}`;
+  document.getElementById('feed').appendChild(d);scroll();
+}
+
+function addSys(t){
+  const d=document.createElement('div');d.className='sys';d.textContent=t;
+  document.getElementById('feed').appendChild(d);scroll();
+}
+
+function addMsg(aid,html){
+  const a=AG[aid]||{n:aid,i:'⚙️',c:'#666'};
+  const d=document.createElement('div');d.className='msg';
+  d.innerHTML=`<div class="av" style="background:color-mix(in srgb,${a.c} 15%,#222);color:${a.c}">${a.i}</div>
+  <div class="mr"><div class="mh"><span class="mn" style="color:${a.c}">${a.n}</span><span class="mt">${now()}</span></div>
+  <div class="mb">${html}</div></div>`;
+  document.getElementById('feed').appendChild(d);scroll();
+}
+
+function updateArts(){
+  const el=document.getElementById('artList');
+  const items=Object.values(arts);
+  if(!items.length){el.innerHTML='<div class="no-art">暂无制品</div>';return;}
+  el.innerHTML=items.map(a=>`<div class="art">
+    <div class="art-n">${esc(a.name||a.id)}</div>
+    <span class="art-b ${a.status==='active'?'ba':a.status==='rejected'?'br':'bd'}">${
+      a.status==='active'?'✅ 已激活':a.status==='rejected'?'❌ 已拒绝':'⏳ 草稿'
+    }</span>
+  </div>`).join('');
+}
+
+function handleEvent(ev){
+  const type=ev.event_type,aid=ev.agent_id,r=ev.round_number||0,p=ev.payload||{};
+
+  if(type==='agent_turn_started'){
+    if(r!==lastRound){lastRound=r;round=r;addSep(r,aid);document.getElementById('sr').textContent=r;}
+    setActive(aid);return;
+  }
+  if(type==='agent_turn_ended'){
+    document.getElementById('as-'+aid).textContent=`完成 ${p.actions_taken||0} 步`;return;
+  }
+  if(type==='run_started'){addSys('🚀 任务开始：'+esc((p.task||'').slice(0,60)));return;}
+
+  if(type==='action_created'){
+    acts++;document.getElementById('sa').textContent=acts;
+    const at=p.action_type;
+
+    if(at==='send_message'){
+      addMsg(aid,`<div class="blk blk-msg"><div class="bl" style="color:#888">发送消息</div>${esc(p.content||'')}</div>`);
+    }
+    else if(at==='call_tool'){
+      const args=p.arguments?JSON.stringify(p.arguments,null,2):'{}';
+      addMsg(aid,`<div class="blk blk-tool">
+        <div class="bl" style="color:#60a5fa">调用工具</div>
+        <div class="kv"><span class="k">工具：</span><span class="v" style="color:#93c5fd;font-weight:600">${esc(p.tool_name||'')}</span></div>
+        <div class="kv"><span class="k">参数：</span><span class="v">${esc(args)}</span></div>
+      </div>`);
+    }
+    else if(at==='create_executable_tool_draft'){
+      const code=p.code_preview||'';
+      addMsg(aid,`<div class="blk blk-artifact">
+        <div class="bl" style="color:#a78bfa">创建工具草稿</div>
+        <div class="kv"><span class="k">名称：</span><span class="v" style="color:#c4b5fd;font-weight:600">${esc(p.name||'')}</span></div>
+        <div class="kv"><span class="k">描述：</span><span class="v">${esc(p.description||'')}</span></div>
+        ${code?`<div class="blk-code">${esc(code)}${code.length>=300?'\n...(截断)':''}</div>`:''}
+      </div>`);
+    }
+    else if(at==='create_prompt_skill_draft'){
+      addMsg(aid,`<div class="blk blk-artifact">
+        <div class="bl" style="color:#a78bfa">创建技能草稿</div>
+        <div class="kv"><span class="k">名称：</span><span class="v" style="color:#c4b5fd;font-weight:600">${esc(p.name||'')}</span></div>
+        <div class="kv"><span class="k">描述：</span><span class="v">${esc(p.description||'')}</span></div>
+        ${p.prompt_fragment?`<div class="kv"><span class="k">提示词：</span><span class="v">${esc(p.prompt_fragment.slice(0,200))}</span></div>`:''}
+      </div>`);
+    }
+    else if(at==='handoff'){
+      const to=AG[p.target_agent]?.n||p.target_agent||'';
+      addMsg(aid,`<div class="blk blk-handoff">
+        <div class="bl" style="color:#fbbf24">移交控制权</div>
+        <div style="font-size:13px;color:#fcd34d;font-weight:600">${AG[aid]?.n||aid} → ${to}</div>
+        ${p.reason?`<div style="margin-top:4px;color:#a0a0a0;font-size:12px">${esc(p.reason.slice(0,150))}</div>`:''}
+      </div>`);
+    }
+    else if(at==='activate_artifact'){
+      addMsg(aid,`<div class="blk blk-artifact">
+        <div class="bl" style="color:#4ade80">激活制品</div>
+        <div class="kv"><span class="k">ID：</span><span class="v" style="color:#86efac">${esc(p.artifact_id||'')}</span></div>
+      </div>`);
+    }
+    else if(at==='final_answer'){
+      addMsg(aid,`<div class="blk blk-answer">
+        <div class="bl" style="color:#4ade80">最终答案</div>
+        ${esc(p.content||'')}
+      </div>`);
+    }
+    return;
+  }
+
+  if(type==='action_result'){
+    if(!p.success){
+      addMsg(aid,`<span style="color:#f87171;font-size:12px">❌ 执行失败：${esc(p.error||'')}</span>`);
+      return;
+    }
+    // 工具调用成功 — 显示结果
+    if(p.action_type==='call_tool'&&p.output){
+      const out=typeof p.output==='string'?p.output:JSON.stringify(p.output,null,2);
+      addMsg(aid,`<div class="blk blk-result">
+        <div class="bl" style="color:#4ade80">工具返回结果</div>
+        <div class="blk-code">${esc(out.slice(0,800))}${out.length>800?'\n...(截断)':''}</div>
+      </div>`);
+    }
+    return;
+  }
+
+  if(type==='artifact_created'||type==='artifact_updated'){
+    const s=p.artifact_summary||{};
+    const artid=p.artifact_id;
+    if(artid){arts[artid]={id:artid,name:s.name||artid,status:s.status||'draft'};updateArts();}
+    return;
+  }
+
+  if(type==='evaluation_completed'){
+    const c=p.evaluation_card||{};
+    const pass=c.approve;
+    const scores=Object.entries(c.scores||{});
+    const revs=c.required_revisions||[];
+    addMsg(aid,`<div class="blk blk-review">
+      <div class="verdict ${pass?'pass':'fail'}">${pass?'✅ 审核通过':'❌ 审核拒绝'}</div>
+      ${c.rationale?`<div style="color:#aaa;margin-bottom:6px;font-size:12px">${esc(c.rationale.slice(0,250))}</div>`:''}
+      ${scores.length?`<div class="scores">${scores.map(([k,v])=>`<span class="sc ${Number(v)>=0.7?'hi':'lo'}">${k}: ${v}</span>`).join('')}</div>`:''}
+      ${revs.length?`<div style="margin-top:6px;font-size:11px;color:#f87171">需要修改：${revs.map(r=>esc(r)).join('；')}</div>`:''}
+    </div>`);
+    if(c.artifact_id&&arts[c.artifact_id]){
+      if(!pass)arts[c.artifact_id].status='rejected';
+      updateArts();
+    }
+    return;
+  }
+
+  if(type==='skill_injected'){addSys('💡 注入技能：'+(p.skill_name||''));return;}
+
+  if(type==='run_completed'){
+    const ans=p.final_answer||'';
+    document.getElementById('sr').textContent=p.total_rounds||r;
+    if(ans){
+      document.getElementById('nans').style.display='none';
+      const ab=document.getElementById('ans');ab.textContent=ans;ab.classList.add('show');
+    }
+    setActive(null);dot('ok','已完成');
+    Object.values(arts).forEach(a=>{if(a.status==='draft')a.status='active';});
+    updateArts();finish();return;
+  }
+  if(type==='run_failed'){
+    dot('err','失败');addSys('💥 任务失败：'+(p.error_detail||''));
+    setActive(null);finish();return;
+  }
+}
+
+async function go(){
+  const task=document.getElementById('ti').value.trim();
+  if(!task)return;
+  if(es){es.close();es=null;}
+  document.getElementById('feed').innerHTML='';
+  document.getElementById('ans').classList.remove('show');
+  document.getElementById('nans').style.display='';
+  document.getElementById('sr').textContent='—';
+  document.getElementById('sa').textContent='—';
+  arts={};acts=0;round=0;lastRound=-1;
+  updateArts();dot('run','执行中...');setActive(null);
+  document.getElementById('sb').disabled=true;
+  try{
+    const res=await fetch('/runs',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({task})});
+    if(!res.ok)throw new Error('创建失败');
+    const {run_id}=await res.json();
+    es=new EventSource(`/runs/${run_id}/events`);
+    const types=['run_started','agent_turn_started','agent_turn_ended','action_created','action_result',
+      'agent_handoff','artifact_created','artifact_updated','evaluation_completed',
+      'skill_injected','run_completed','run_failed'];
+    es.onmessage=e=>{try{handleEvent(JSON.parse(e.data))}catch(ex){console.error(ex)}};
+    types.forEach(t=>es.addEventListener(t,e=>{try{handleEvent(JSON.parse(e.data))}catch(ex){console.error(ex)}}));
+    es.onerror=()=>{es.close();finish();};
+  }catch(err){addSys('❌ '+err.message);dot('err','失败');finish();}
+}
+function finish(){document.getElementById('sb').disabled=false;}
+</script>
+</body>
+</html>

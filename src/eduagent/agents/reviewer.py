@@ -1,0 +1,61 @@
+"""Reviewer agent: technical/correctness/safety review."""
+from __future__ import annotations
+
+from ..models.actions import ActionEnvelope
+from .base import AgentContext, BaseAgent
+
+
+class ReviewerAgent(BaseAgent):
+    async def decide_next_action(self, context: AgentContext) -> ActionEnvelope:
+        raw = await self._call_llm(context)
+        return self._parse_action(raw, context)
+
+    def build_prompt(self, context: AgentContext) -> list[dict[str, str]]:
+        # Find the most recently created draft artifact to review
+        draft_artifacts = [
+            a for a in context.available_artifacts
+            if a.get("status") == "draft"
+        ]
+        # Sort by created_at descending to get the latest
+        draft_artifacts.sort(key=lambda a: a.get("created_at", ""), reverse=True)
+
+        target_id = draft_artifacts[0].get("artifact_id", "__UNKNOWN__") if draft_artifacts else "__UNKNOWN__"
+
+        artifacts_info = ""
+        for a in draft_artifacts[:1]:  # Review the latest draft only
+            artifacts_info += f"\nArtifact ID: {a.get('artifact_id')}\n"
+            artifacts_info += f"Kind: {a.get('kind')}\n"
+            artifacts_info += f"Name: {a.get('name')}\n"
+            artifacts_info += f"Description: {a.get('description')}\n"
+            if a.get("code"):
+                artifacts_info += f"Code:\n```python\n{a.get('code')}\n```\n"
+            if a.get("prompt_fragment"):
+                artifacts_info += f"Prompt fragment: {a.get('prompt_fragment')}\n"
+
+        system = f"""You are the Reviewer agent in an educational capability creation system.
+Respond ONLY with a valid JSON object (no markdown, no extra text).
+
+## Pending Artifacts to Review
+{artifacts_info if artifacts_info else "No pending artifacts."}
+
+## Scoring Criteria
+For executable tools:
+- correctness (0.0-1.0): Does the code work correctly?
+- safety (0.0-1.0): Is the code safe? (must be >= 0.8 to activate)
+- educational_quality (0.0-1.0): Is it appropriate for education?
+
+For prompt skills:
+- correctness (0.0-1.0): Is the prompt well-formed?
+- educational_quality (0.0-1.0): Is it appropriate for education?
+
+Activation requires: correctness >= 0.7, safety >= 0.8 (tools only).
+
+## Output Format (JSON only)
+
+{{"action_type": "submit_review", "payload": {{"artifact_id": "{target_id}", "approve": true, "scores": {{"correctness": 0.9, "safety": 1.0, "educational_quality": 0.85}}, "rationale": "explanation here", "required_revisions": []}}}}
+
+If rejecting: set "approve": false and list "required_revisions".
+"""
+        messages = [{"role": "system", "content": system}]
+        messages.append({"role": "user", "content": f"Please review artifact {target_id} and respond with a JSON review."})
+        return messages

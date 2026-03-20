@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<title>EduAgent 能力生命周期 & 评估体系</title>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<style>
+  body { font-family: "PingFang SC", "Microsoft YaHei", sans-serif; background: #f8f9fa; margin: 0; padding: 30px; }
+  h1 { text-align: center; color: #2c3e50; font-size: 22px; margin-bottom: 6px; }
+  .subtitle { text-align: center; color: #7f8c8d; font-size: 13px; margin-bottom: 30px; }
+  .card { background: white; border-radius: 12px; box-shadow: 0 2px 12px rgba(0,0,0,0.08); padding: 30px; max-width: 1000px; margin: 0 auto 30px; }
+  .card h2 { color: #34495e; font-size: 16px; margin: 0 0 20px; padding-bottom: 10px; border-bottom: 2px solid #9b59b6; }
+  .mermaid { text-align: center; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 20px; }
+  .box { background: #f8f9fa; border-radius: 8px; padding: 16px; border-left: 4px solid #3b82f6; }
+  .box h3 { margin: 0 0 10px; font-size: 14px; color: #1e3a5f; }
+  .box ul { margin: 0; padding-left: 18px; font-size: 13px; color: #374151; line-height: 1.8; }
+  .box.green { border-left-color: #22c55e; }
+  .box.green h3 { color: #14532d; }
+  .box.orange { border-left-color: #f59e0b; }
+  .box.orange h3 { color: #78350f; }
+  .box.pink { border-left-color: #ec4899; }
+  .box.pink h3 { color: #831843; }
+</style>
+</head>
+<body>
+<h1>EduAgent — 能力生命周期 & 评估体系</h1>
+<p class="subtitle">发现缺口 → 创建草稿 → 评估博弈 → 激活 → 复用</p>
+
+<div class="card">
+<h2>① CapabilityArtifact 生命周期</h2>
+<div class="mermaid">
+stateDiagram-v2
+    [*] --> DRAFT : Builder 创建草稿\ncreate_executable_tool_draft\ncreate_prompt_skill_draft
+
+    DRAFT --> DRAFT : Reviewer 拒绝\n→ Builder 修订\nrevision +1
+
+    DRAFT --> REVIEWING : Reviewer 提交评审\nsubmit_review
+
+    REVIEWING --> REVIEWING2 : Reviewer ✅ approve\n→ UserSimulator 评审
+
+    REVIEWING2 --> ACTIVE : UserSimulator ✅ approve\n+ rule_check 通过\n+ 分数达标\nactivate_artifact
+
+    REVIEWING --> DRAFT : Reviewer ❌ reject\n→ 返回修订
+
+    REVIEWING2 --> DRAFT : UserSimulator ❌ reject\n→ 返回修订
+
+    ACTIVE --> [*] : Planner call_tool 复用
+
+    DRAFT --> REJECTED : 超过修订次数\nreject_artifact
+
+    note right of ACTIVE
+        激活条件：
+        correctness ≥ 0.7
+        safety ≥ 0.8 (工具)
+        rule_check 通过
+        smoke_test 通过
+    end note
+
+    REVIEWING : Reviewer 审核中
+    REVIEWING2 : UserSimulator 审核中
+</div>
+</div>
+
+<div class="card">
+<h2>② 两类能力 Artifact 对比</h2>
+<div class="grid">
+  <div class="box">
+    <h3>⚡ ExecutableTool（可执行工具）</h3>
+    <ul>
+      <li>Python 函数，JSON 序列化 I/O</li>
+      <li>在 Sandbox 中受限执行</li>
+      <li>白名单模块：math / random / json / re / collections 等</li>
+      <li>禁止：os / subprocess / requests / open / eval</li>
+      <li>smoke_test 无参调用验证</li>
+      <li>示例：generate_math_problems, english_fill_blank</li>
+    </ul>
+  </div>
+  <div class="box green">
+    <h3>💡 PromptSkill（提示词技能）</h3>
+    <ul>
+      <li>上下文注入策略，像 Claude Code skill</li>
+      <li>trigger_guidance：关键词匹配触发</li>
+      <li>prompt_fragment：注入 Agent system prompt</li>
+      <li>allowed_tools：限定可调用工具</li>
+      <li>确定性选择（关键词匹配打分）</li>
+      <li>示例：text_simplifier（文本简化策略）</li>
+    </ul>
+  </div>
+</div>
+</div>
+
+<div class="card">
+<h2>③ 三阶段评估流水线</h2>
+<div class="mermaid">
+flowchart LR
+    DRAFT["📄 Draft\nArtifact"] --> RC
+
+    subgraph Stage1["阶段1：静态规则检查（系统自动）"]
+        RC["RuleChecker\n• 名称/描述非空\n• 代码语法验证\n• 禁止导入检查\n• entrypoint 存在\n• smoke_test 无参运行"]
+    end
+
+    subgraph Stage2["阶段2：技术评审（Reviewer / glm-5）"]
+        RV["评分维度\n• correctness ≥ 0.7\n• safety ≥ 0.8\n• educational_quality\n\n可要求修订"]
+    end
+
+    subgraph Stage3["阶段3：用户视角评审（UserSimulator / MiniMax-M2.5）"]
+        US["评分维度\n• usability\n• educational_value\n• age_appropriateness\n\n模拟教师/学生视角"]
+    end
+
+    subgraph Activate["激活决策（Evaluator）"]
+        EV["can_activate()\n• 取每个评审者最新卡\n• 全部 approve=True\n• 有 correctness 则检查阈值\n• 有 safety 则检查阈值\n• rule_check 通过"]
+    end
+
+    RC -->|"通过"| Stage2
+    RC -->|"失败"| FAIL1["❌ 拒绝\n返回修订"]
+    Stage2 --> Stage3
+    Stage3 --> Activate
+    Activate -->|"通过"| ACTIVE["✅ ACTIVE\n可被 Planner 调用"]
+    Activate -->|"失败"| FAIL2["❌ 拒绝\n返回修订"]
+
+    style Stage1 fill:#eff6ff,stroke:#3b82f6
+    style Stage2 fill:#fce7f3,stroke:#ec4899
+    style Stage3 fill:#fef9c3,stroke:#eab308
+    style Activate fill:#f0fdf4,stroke:#22c55e
+</div>
+</div>
+
+<div class="card">
+<h2>④ Skill 注入机制（Prompt Skill 工作原理）</h2>
+<div class="mermaid">
+flowchart TD
+    TASK["用户任务文本"] --> MATCH
+
+    subgraph MATCH["关键词匹配打分"]
+        M1["取 task + 最近3条消息"]
+        M2["遍历所有 ACTIVE PromptSkill"]
+        M3["trigger_guidance 关键词 ∩ 任务词 = score"]
+        M4["失败加权：上次失败的错误信息也参与匹配"]
+        M1 --> M2 --> M3 --> M4
+    end
+
+    MATCH -->|"score > 0 的最高分"| INJECT["注入 Agent System Prompt\n## Injected Skill\n{prompt_fragment}"]
+    MATCH -->|"无匹配"| NOINJECT["不注入"]
+
+    INJECT --> LLM["LLM 决策\n（带技能上下文）"]
+    INJECT --> EVT["emit SKILL_INJECTED 事件"]
+
+    style INJECT fill:#fdf4ff,stroke:#a855f7
+    style LLM fill:#fce7f3,stroke:#ec4899
+</div>
+</div>
+
+</body>
+</html>

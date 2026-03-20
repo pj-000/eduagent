@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<title>EduAgent 四图汇报</title>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    font-family: "PingFang SC", "Microsoft YaHei", "Noto Sans CJK SC", sans-serif;
+    background: #f0f2f5;
+    margin: 0; padding: 40px 20px;
+    color: #1a1a2e;
+  }
+  .page-title {
+    text-align: center;
+    font-size: 26px;
+    font-weight: 700;
+    color: #1a1a2e;
+    margin-bottom: 4px;
+  }
+  .page-sub {
+    text-align: center;
+    font-size: 14px;
+    color: #6b7280;
+    margin-bottom: 48px;
+    letter-spacing: 1px;
+  }
+  .section {
+    background: white;
+    border-radius: 16px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.07);
+    padding: 36px 40px;
+    max-width: 1080px;
+    margin: 0 auto 40px;
+  }
+  .section-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 28px;
+    padding-bottom: 14px;
+    border-bottom: 3px solid;
+  }
+  .section-header .num {
+    width: 32px; height: 32px;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 700; font-size: 15px; color: white;
+    flex-shrink: 0;
+  }
+  .section-header h2 {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 700;
+  }
+  .s1 .section-header { border-color: #3b82f6; }
+  .s1 .num { background: #3b82f6; }
+  .s1 .section-header h2 { color: #1d4ed8; }
+
+  .s2 .section-header { border-color: #10b981; }
+  .s2 .num { background: #10b981; }
+  .s2 .section-header h2 { color: #065f46; }
+
+  .s3 .section-header { border-color: #8b5cf6; }
+  .s3 .num { background: #8b5cf6; }
+  .s3 .section-header h2 { color: #5b21b6; }
+
+  .s4 .section-header { border-color: #f59e0b; }
+  .s4 .num { background: #f59e0b; }
+  .s4 .section-header h2 { color: #92400e; }
+
+  .mermaid { text-align: center; }
+</style>
+</head>
+<body>
+
+<div class="page-title">EduAgent — 教育多智能体能力创造系统</div>
+<div class="page-sub">汇报材料 · 2026</div>
+
+<!-- ① 总体框架图 -->
+<div class="section s1">
+  <div class="section-header">
+    <div class="num">①</div>
+    <h2>总体框架图</h2>
+  </div>
+  <div class="mermaid">
+graph TB
+    subgraph 接口层["🖥️  接口层（Interface Layer）"]
+        CLI["命令行 CLI\nrun · inspect · replay\nartifacts · purge"]
+        API["FastAPI REST + SSE\nPOST /runs\nGET /runs/{id}/events\nGET /artifacts\nPOST /replay/{场景}"]
+    end
+
+    subgraph 服务层["⚙️  服务层（Service Layer）"]
+        RS["RunService\n创建并异步执行 Run"]
+        AS["ArtifactService\n查询能力制品详情"]
+        RPS["ReplayService\n3 个标准场景回放"]
+    end
+
+    subgraph 核心运行时["🧠  核心运行时（Core Runtime）"]
+        SCH["调度器 Scheduler\n外层 Baton 轮转调度\n最多 20 轮"]
+        AR["AgentRunner\n内层 Tool-Loop\n每轮最多 5 步"]
+        EX["动作执行器 Executor\n9 种 ActionType\n集成评估流水线"]
+        SB["沙箱 Sandbox\n受限 Python 执行\n白名单模块"]
+        EVT["事件总线 EventSink\n统一写入 events.jsonl\n支持 SSE 订阅"]
+        REG["制品仓库 Registry\n原子写 · 版本管理\ndraft/active/rejected"]
+    end
+
+    subgraph 智能体层["🤖  智能体层（Agents）— 纯决策函数"]
+        PL["规划者 Planner\nqwen3.5-plus\n任务分解 · 工具调用 · 最终答案"]
+        BU["构建者 Builder\nkimi-k2.5\n创建 & 修订能力制品"]
+        RV["审核者 Reviewer\nglm-5\n技术质量 & 安全审查"]
+        US["用户模拟器 UserSimulator\nMiniMax-M2.5\n教师/学生视角评估"]
+    end
+
+    subgraph 能力制品["📦  能力制品（CapabilityArtifact）"]
+        ET["可执行工具\nExecutableTool\nPython 函数 · 沙箱运行"]
+        PS["提示词技能\nPromptSkill\n上下文注入 · 关键词触发"]
+    end
+
+    CLI --> RS
+    API --> RS & AS & RPS
+    RS --> SCH --> AR
+    AR --> EX & EVT
+    EX --> SB & REG
+    AR --> PL & BU & RV & US
+    REG --> ET & PS
+
+    style 接口层 fill:#dbeafe,stroke:#3b82f6,color:#1e3a5f
+    style 服务层 fill:#d1fae5,stroke:#10b981,color:#064e3b
+    style 核心运行时 fill:#fef9c3,stroke:#f59e0b,color:#78350f
+    style 智能体层 fill:#fce7f3,stroke:#ec4899,color:#831843
+    style 能力制品 fill:#ede9fe,stroke:#8b5cf6,color:#4c1d95
+  </div>
+</div>
+
+<!-- ② 主流程图 -->
+<div class="section s2">
+  <div class="section-header">
+    <div class="num">②</div>
+    <h2>主流程图</h2>
+  </div>
+  <div class="mermaid">
+flowchart TD
+    START(["👤 用户输入任务"]) --> PL1
+
+    PL1["🧭 规划者\n分析任务\n检查可用工具"]
+
+    PL1 -->|"工具已存在"| CALL["调用工具\ncall_tool"]
+    CALL --> RESULT["获得结果"]
+    RESULT --> FINAL(["✅ 输出最终答案\nfinal_answer"])
+
+    PL1 -->|"工具不存在\n发现能力缺口"| BU1["🔨 构建者\n编写 Python 代码\n创建草稿 Draft"]
+
+    BU1 --> RV1["🔍 审核者\n技术审查\ncorrectness · safety · quality"]
+
+    RV1 -->|"❌ 拒绝\n提出修改意见"| BU1
+    RV1 -->|"✅ 通过"| US1["👤 用户模拟器\n教师/学生视角\nusability · educational_value"]
+
+    US1 -->|"❌ 拒绝\n提出修改意见"| BU1
+    US1 -->|"✅ 通过"| ACT["⚡ 规划者激活制品\nactivate_artifact\nrule_check + 分数验证"]
+
+    ACT -->|"激活成功\n写入 Registry"| CALL
+    ACT -->|"激活失败\n规则检查不通过"| BU1
+
+    style START fill:#1d4ed8,color:white,stroke:#1d4ed8
+    style FINAL fill:#065f46,color:white,stroke:#065f46
+    style PL1 fill:#dbeafe,stroke:#3b82f6,color:#1e3a5f
+    style BU1 fill:#d1fae5,stroke:#10b981,color:#064e3b
+    style RV1 fill:#fce7f3,stroke:#ec4899,color:#831843
+    style US1 fill:#fef9c3,stroke:#f59e0b,color:#78350f
+    style ACT fill:#ede9fe,stroke:#8b5cf6,color:#4c1d95
+    style CALL fill:#f0fdf4,stroke:#86efac,color:#14532d
+  </div>
+</div>
+
+<!-- ③ 单个 Agent 内部工作流程 -->
+<div class="section s3">
+  <div class="section-header">
+    <div class="num">③</div>
+    <h2>单个 Agent 内部工作流程</h2>
+  </div>
+  <div class="mermaid">
+flowchart LR
+    subgraph 上下文构建["① 构建上下文 build_context()"]
+        C1["可用工具列表\n（内置 + 已激活）"]
+        C2["待审核制品列表\npending_artifact_ids"]
+        C3["历史消息\nshared_messages[-10:]"]
+        C4["注入技能\nPromptSkill 关键词匹配"]
+    end
+
+    subgraph LLM决策["② LLM 推理 decide_next_action()"]
+        L1["构建 System Prompt\n+ 任务 + 历史"]
+        L2["调用模型 API\n输出 JSON Action"]
+        L3["解析 ActionEnvelope\n9 种 ActionType"]
+    end
+
+    subgraph 执行["③ 执行 ActionExecutor.execute()"]
+        E1["send_message\n发送消息"]
+        E2["call_tool\n沙箱执行工具"]
+        E3["create_draft\n创建制品草稿"]
+        E4["submit_review\n提交评审卡"]
+        E5["activate_artifact\n激活制品"]
+        E6["handoff\n移交控制权"]
+        E7["final_answer\n输出最终答案"]
+    end
+
+    subgraph 状态更新["④ 更新状态 update_state()"]
+        U1["写入 shared_messages\n（工具结果可见）"]
+        U2["更新 artifact 列表\npending / active"]
+        U3["记录 ActionResult\n供下轮参考"]
+    end
+
+    subgraph 终止判断["⑤ 是否结束本轮？"]
+        T1{"end_turn?"}
+        T2["handoff / final_answer\n→ 结束，移交调度器"]
+        T3["create_draft 成功\n→ 结束，切换 Reviewer"]
+        T4["连续失败 ≥ 3 次\n→ 结束，切回 Planner"]
+        T5["继续下一步\n（最多 5 步）"]
+    end
+
+    上下文构建 --> LLM决策 --> 执行 --> 状态更新 --> 终止判断
+    T1 -->|是| T2
+    T1 -->|是| T3
+    T1 -->|是| T4
+    T1 -->|否| T5
+    T5 -->|"回到步骤①"| 上下文构建
+
+    style 上下文构建 fill:#dbeafe,stroke:#3b82f6
+    style LLM决策 fill:#fce7f3,stroke:#ec4899
+    style 执行 fill:#fef9c3,stroke:#f59e0b
+    style 状态更新 fill:#d1fae5,stroke:#10b981
+    style 终止判断 fill:#ede9fe,stroke:#8b5cf6
+  </div>
+</div>
+
+<!-- ④ 多 Agent 协作时序图 -->
+<div class="section s4">
+  <div class="section-header">
+    <div class="num">④</div>
+    <h2>多 Agent 协作时序图</h2>
+  </div>
+  <div class="mermaid">
+sequenceDiagram
+    actor 用户
+    participant 调度器 as 调度器<br/>Scheduler
+    participant 规划者 as 🧭 规划者<br/>Planner
+    participant 构建者 as 🔨 构建者<br/>Builder
+    participant 审核者 as 🔍 审核者<br/>Reviewer
+    participant 用户模拟器 as 👤 用户模拟器<br/>UserSimulator
+    participant 执行器 as ⚙️ 执行器<br/>Executor
+    participant 仓库 as 🗄️ 制品仓库<br/>Registry
+
+    用户->>调度器: 提交任务："帮我创建英语填空题工具"
+    调度器->>规划者: 第1轮：选择规划者
+
+    Note over 规划者: 分析任务，发现工具缺口
+    规划者->>执行器: handoff → 构建者
+    执行器-->>规划者: ok
+    规划者-->>调度器: 本轮结束
+
+    调度器->>构建者: 第2轮：选择构建者
+    Note over 构建者: 编写 Python 工具代码
+    构建者->>执行器: create_executable_tool_draft
+    执行器->>仓库: register_draft(code)
+    仓库-->>执行器: artifact_id = "abc123"
+    执行器-->>构建者: 草稿已创建
+    Note over 构建者: 创建1个后自动停止本轮
+
+    调度器->>审核者: 第3轮：选择审核者
+    Note over 审核者: 审查代码质量与安全性
+    审核者->>执行器: submit_review(approve=True,<br/>correctness=0.9, safety=1.0)
+    执行器-->>审核者: 评审卡已记录
+    审核者-->>调度器: 本轮结束（approve=True）
+
+    调度器->>用户模拟器: 第4轮：选择用户模拟器
+    Note over 用户模拟器: 模拟教师/学生使用体验
+    用户模拟器->>执行器: submit_review(approve=True,<br/>usability=0.9, educational_value=0.85)
+    执行器-->>用户模拟器: 评审卡已记录
+    用户模拟器-->>调度器: 本轮结束（approve=True）
+
+    调度器->>规划者: 第5轮：选择规划者（双方通过）
+    Note over 规划者: 检测到待激活制品
+    规划者->>执行器: activate_artifact("abc123")
+    执行器->>执行器: rule_check + 分数阈值验证
+    执行器->>仓库: status → ACTIVE
+    仓库-->>执行器: ok
+    执行器-->>规划者: 激活成功
+
+    Note over 规划者: 工具已激活，立即调用
+    规划者->>执行器: call_tool("english_fill_blank",<br/>{count: 5, difficulty: "medium"})
+    执行器->>执行器: Sandbox 受限执行
+    执行器-->>规划者: {exercises: [5道题...]}
+
+    规划者->>用户: final_answer("已生成5道英语填空练习题...")
+    Note over 调度器: Run 完成，共5轮
+  </div>
+</div>
+
+</body>
+</html>

@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<title>EduAgent 多Agent协作流程图</title>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<style>
+  body { font-family: "PingFang SC", "Microsoft YaHei", sans-serif; background: #f8f9fa; margin: 0; padding: 30px; }
+  h1 { text-align: center; color: #2c3e50; font-size: 22px; margin-bottom: 6px; }
+  .subtitle { text-align: center; color: #7f8c8d; font-size: 13px; margin-bottom: 30px; }
+  .card { background: white; border-radius: 12px; box-shadow: 0 2px 12px rgba(0,0,0,0.08); padding: 30px; max-width: 1100px; margin: 0 auto 30px; }
+  .card h2 { color: #34495e; font-size: 16px; margin: 0 0 20px; padding-bottom: 10px; border-bottom: 2px solid #e74c3c; }
+  .mermaid { text-align: center; }
+  .legend { display: flex; gap: 20px; flex-wrap: wrap; margin-top: 16px; font-size: 13px; }
+  .legend-item { display: flex; align-items: center; gap: 6px; }
+  .dot { width: 12px; height: 12px; border-radius: 50%; }
+</style>
+</head>
+<body>
+<h1>EduAgent — 多 Agent 协作流程</h1>
+<p class="subtitle">Baton 调度 · 工具创建完整闭环</p>
+
+<div class="card">
+<h2>① Scheduler Baton 路由规则</h2>
+<div class="mermaid">
+flowchart TD
+    START(["用户任务输入"]) --> PL
+
+    PL["🧭 Planner\nqwen3.5-plus"]
+    BU["🔨 Builder\nkimi-k2.5"]
+    RV["🔍 Reviewer\nglm-5"]
+    US["👤 UserSimulator\nMiniMax-M2.5"]
+
+    PL -->|"工具不存在\nhandoff → builder"| BU
+    PL -->|"工具已激活\ncall_tool"| TOOL["⚡ 执行工具\n(Sandbox)"]
+    TOOL --> PL
+    PL -->|"任务完成\nfinal_answer"| END(["输出结果"])
+
+    BU -->|"create_draft\n(1个后自动停止)"| RV
+    RV -->|"approve ✅"| US
+    RV -->|"reject ❌\n需要修改"| BU
+    US -->|"approve ✅"| PL
+    US -->|"reject ❌\n需要修改"| BU
+
+    PL -->|"activate_artifact\n双方通过后激活"| ACT["✅ Artifact 激活\n写入 Registry"]
+    ACT --> PL
+
+    style PL fill:#dbeafe,stroke:#3b82f6,color:#1e3a5f
+    style BU fill:#dcfce7,stroke:#22c55e,color:#14532d
+    style RV fill:#fce7f3,stroke:#ec4899,color:#831843
+    style US fill:#fef9c3,stroke:#eab308,color:#713f12
+    style TOOL fill:#f3f4f6,stroke:#6b7280
+    style ACT fill:#d1fae5,stroke:#10b981
+    style START fill:#1e40af,color:white,stroke:#1e40af
+    style END fill:#065f46,color:white,stroke:#065f46
+</div>
+</div>
+
+<div class="card">
+<h2>② 完整工具创建场景（scenario-b 类型）</h2>
+<div class="mermaid">
+sequenceDiagram
+    actor User as 👤 用户
+    participant PL as 🧭 Planner
+    participant BU as 🔨 Builder
+    participant RV as 🔍 Reviewer
+    participant US as 👤 UserSimulator
+    participant EX as ⚙️ Executor
+    participant REG as 🗄️ Registry
+
+    User->>PL: "帮我创建英语填空题工具"
+    Note over PL: 分析任务，发现工具缺口
+    PL->>BU: handoff("需要创建新工具")
+
+    Note over BU: 生成 Python 代码
+    BU->>EX: create_executable_tool_draft
+    EX->>REG: register_draft(artifact)
+    REG-->>EX: artifact_id = "abc123"
+    EX-->>BU: ok, artifact_id
+    Note over BU: 创建1个后自动停止
+
+    BU-->>RV: [Scheduler 切换]
+    Note over RV: 审查代码质量/安全性
+    RV->>EX: submit_review(approve=True, correctness=0.9, safety=1.0)
+    EX-->>RV: 评审卡已记录
+
+    RV-->>US: [Scheduler 切换]
+    Note over US: 从教师/学生视角评估
+    US->>EX: submit_review(approve=True, usability=0.9)
+    EX-->>US: 评审卡已记录
+
+    US-->>PL: [Scheduler 切换，双方通过]
+    Note over PL: 检测到待激活 artifact
+    PL->>EX: activate_artifact("abc123")
+    EX->>EX: rule_checker + 评分阈值验证
+    EX->>REG: status → ACTIVE
+    REG-->>EX: ok
+    EX-->>PL: 激活成功
+
+    Note over PL: 工具已可用，调用它
+    PL->>EX: call_tool("english_fill_blank", {count:5})
+    EX->>EX: Sandbox 执行
+    EX-->>PL: {exercises: [...]}
+
+    PL->>User: final_answer("已生成5道填空题...")
+</div>
+</div>
+
+<div class="card">
+<h2>③ Agent 内层 Tool-Loop（单轮决策）</h2>
+<div class="mermaid">
+flowchart LR
+    CTX["build_context()\n• 可用工具列表\n• pending artifacts\n• 历史消息\n• 注入 Skill"] --> LLM["LLM 推理\ndecide_next_action()\n输出 JSON Action"]
+    LLM --> PARSE["解析 ActionEnvelope\n9种 ActionType"]
+    PARSE --> EXEC["ActionExecutor\nexecute(action)"]
+    EXEC --> STATE["update_state()\n• 写 shared_messages\n• 更新 artifact 列表\n• 记录 result"]
+    STATE --> CHK{"end_turn?\nhandoff/final\ndraft创建/失败×3"}
+    CHK -->|"继续"| CTX
+    CHK -->|"结束"| RET["返回 results\n→ Scheduler"]
+
+    style LLM fill:#fce7f3,stroke:#ec4899
+    style EXEC fill:#fef9c3,stroke:#eab308
+    style CTX fill:#dbeafe,stroke:#3b82f6
+</div>
+</div>
+
+</body>
+</html>
